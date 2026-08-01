@@ -1,0 +1,20 @@
+{
+  "name": "themaithil",
+  "private": true,
+  "packageManager": "pnpm@9.15.9",
+  "scripts": {
+    "build": "turbo run build",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "lint": "turbo run lint",
+    "dev": "turbo run dev",
+    "db:up": "docker compose up -d",
+    "db:migrate": "pnpm --filter @themaithil/api db:migrate",
+    "db:seed": "pnpm --filter @themaithil/api db:seed"
+  },
+  "devDependencies": {
+    "turbo": "^2.3.3",
+    "typescript": "^5.7.2"
+  },
+  "engines": { "node": ">=20" }
+}
