@@ -1,7 +1,10 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { sql, eq } from 'drizzle-orm';
 import { makeHarness, daysFromNow, type Harness } from '../../../test/harness';
-import { bookings, ledgerEntries, outbox, availability } from '../../../db/schema/index';
+import { ulid } from 'ulid';
+import {
+  bookings, ledgerEntries, outbox, availability, users, panditProfiles, panditRituals,
+} from '../../../db/schema/index';
 import { DomainError } from '@themaithil/contracts';
 
 let h: Harness;
@@ -30,6 +33,196 @@ const toConfirmed = async (over: Record<string, unknown> = {}) => {
   });
   return { ...d, ...c };
 };
+
+/**
+ * ADR 0011. Booking into a published slot accepts it; the purohit is not asked to
+ * confirm what their own calendar already said.
+ *
+ * Nothing tested the previous gate either — removing it broke no test — so this
+ * exists as much to pin the behaviour as to prove it.
+ */
+/**
+ * ADR 0012. The devotee does not choose a purohit — "18 years" against "22 years"
+ * is not a decision a family can make about a ceremony — so `panditId` is optional
+ * and the platform assigns on rating, proximity, acceptance, experience and
+ * availability.
+ */
+describe('auto-matching', () => {
+  it('assigns a purohit when the devotee names none', async () => {
+    const d = await draft({ panditId: undefined });
+
+    const [row] = await h.db.select({ panditId: bookings.panditId })
+      .from(bookings).where(eq(bookings.id, d.id));
+
+    expect(row!.panditId).toBe(h.ids.panditId);
+    // And says who, so a stranger is never unannounced at someone's door.
+    expect(d.pandit?.id).toBe(h.ids.panditId);
+  });
+
+  it('still honours an explicitly named purohit — the separate flow', async () => {
+    const d = await draft({ panditId: h.ids.panditId });
+    const [row] = await h.db.select({ panditId: bookings.panditId })
+      .from(bookings).where(eq(bookings.id, d.id));
+    expect(row!.panditId).toBe(h.ids.panditId);
+  });
+
+  it('refuses the booking rather than inventing supply when nobody is free', async () => {
+    // Close the purohit's calendar. The enum is open|closed|booked|buffer.
+    await h.db.update(availability).set({ status: 'closed' })
+      .where(eq(availability.panditId, h.ids.panditId));
+
+    await expect(draft({ panditId: undefined }))
+      .rejects.toThrow(/no purohit is free/i);
+  });
+});
+
+/**
+ * A purohit dropping out used to end the booking: refund issued, family left with
+ * no purohit on the day of the ceremony. A refund is not a remedy for a missing
+ * Annaprashan.
+ */
+describe('re-match when a purohit cancels', () => {
+  /** A second verified purohit, free in the same slot. */
+  const addBackup = async () => {
+    const backupId = ulid();
+    await h.db.insert(users).values({
+      id: backupId, phone: '+919830000003', role: 'pandit', cityId: h.ids.cityId,
+      name: 'Backup Purohit',
+    });
+    await h.db.insert(panditProfiles).values({
+      userId: backupId, kycStatus: 'verified', cashJobsEnabled: true,
+      baseLat: 22.5726, baseLng: 88.3639,
+    });
+    await h.db.insert(panditRituals).values({
+      panditId: backupId, ritualId: h.ids.ritualId, pricePaise: 150000, active: true,
+    });
+    await h.availability.materialise({ panditId: backupId, cityId: h.ids.cityId });
+    return backupId;
+  };
+
+  it('hands the booking to the next purohit instead of killing it', async () => {
+    const backupId = await addBackup();
+    const b = await toConfirmed();
+
+    const res = await h.bookings.cancel({
+      bookingId: b.id, actorId: h.ids.panditId, actorRole: 'pandit',
+      reason: 'unwell',
+    });
+
+    expect(res.rematched).toBe(true);
+    const [row] = await h.db.select({ state: bookings.state, panditId: bookings.panditId })
+      .from(bookings).where(eq(bookings.id, b.id));
+
+    expect(row!.state).toBe('confirmed');       // the devotee still has a booking
+    expect(row!.panditId).toBe(backupId);       // with someone else
+  });
+
+  it('does not refund a booking it saved', async () => {
+    await addBackup();
+    const b = await toConfirmed();
+    const res = await h.bookings.cancel({
+      bookingId: b.id, actorId: h.ids.panditId, actorRole: 'pandit', reason: 'unwell',
+    });
+    expect(res.refund.refundPaise).toBe(0);
+  });
+
+  it('keeps the agreed price — a substitution must not reprice the devotee', async () => {
+    await addBackup();
+    const b = await toConfirmed();
+    const [before] = await h.db.select({ price: bookings.price })
+      .from(bookings).where(eq(bookings.id, b.id));
+
+    await h.bookings.cancel({
+      bookingId: b.id, actorId: h.ids.panditId, actorRole: 'pandit', reason: 'unwell',
+    });
+
+    const [after] = await h.db.select({ price: bookings.price })
+      .from(bookings).where(eq(bookings.id, b.id));
+    expect(after!.price).toEqual(before!.price);
+  });
+
+  it('tells the devotee, rather than letting them find out at the door', async () => {
+    await addBackup();
+    const b = await toConfirmed();
+    await h.bookings.cancel({
+      bookingId: b.id, actorId: h.ids.panditId, actorRole: 'pandit', reason: 'unwell',
+    });
+
+    const events = await h.db.select({ type: outbox.eventType })
+      .from(outbox).where(eq(outbox.aggregateId, b.id));
+    expect(events.map((e) => e.type)).toContain('booking.pandit_substituted');
+  });
+
+  it('falls back to cancel and refund when nobody else can take it', async () => {
+    const b = await toConfirmed();   // no backup purohit exists
+
+    const res = await h.bookings.cancel({
+      bookingId: b.id, actorId: h.ids.panditId, actorRole: 'pandit', reason: 'unwell',
+    });
+
+    expect(res.rematched).toBe(false);
+    expect(res.refund.refundPaise).toBeGreaterThan(0);
+    const [row] = await h.db.select({ state: bookings.state })
+      .from(bookings).where(eq(bookings.id, b.id));
+    expect(row!.state).toBe('cancelled_pandit');
+  });
+
+  it('never re-offers the booking to someone who already dropped it', async () => {
+    const backupId = await addBackup();
+    const b = await toConfirmed();
+
+    await h.bookings.cancel({
+      bookingId: b.id, actorId: h.ids.panditId, actorRole: 'pandit', reason: 'unwell',
+    });
+    // Now the backup drops it too. Only two purohits exist, so this must end.
+    const second = await h.bookings.cancel({
+      bookingId: b.id, actorId: backupId, actorRole: 'pandit', reason: 'also unwell',
+    });
+
+    expect(second.rematched).toBe(false);
+    expect(second.refund.refundPaise).toBeGreaterThan(0);
+  });
+});
+
+describe('auto-accept', () => {
+  it('lets the devotee pay immediately, with no separate acceptance', async () => {
+    const d = await draft();
+    const s = await h.bookings.submit(d.id, h.ids.devoteeId);
+
+    expect(s.acceptedAt, 'submitting must accept').toBeTruthy();
+
+    // The whole point: confirmOnTokenCapture used to throw here.
+    const c = await h.bookings.confirmOnTokenCapture({
+      bookingId: d.id, paymentIntentId: `pi_auto_${d.id}`,
+    });
+    expect(c.state).toBe('confirmed');
+  });
+
+  /**
+   * The only exit a purohit has is `cancel()`. There is no lightweight `decline()`
+   * for a job they never agreed to — see ADR 0011, "consequences". Auto-accept
+   * makes that gap matter more, because the purohit is now committed by default.
+   */
+  it('still lets a purohit get out, so auto-accept is not a trap', async () => {
+    const d = await draft();
+    await h.bookings.submit(d.id, h.ids.devoteeId);
+
+    await expect(h.bookings.cancel({
+      bookingId: d.id, actorId: h.ids.panditId, actorRole: 'pandit',
+      reason: 'already committed off-platform',
+    })).resolves.toBeTruthy();
+
+    const [row] = await h.db.select({ state: bookings.state })
+      .from(bookings).where(eq(bookings.id, d.id));
+    expect(row!.state).toBe('cancelled_pandit');
+  });
+
+  it('keeps a decline horizon on the booking for the expiry sweep', async () => {
+    const d = await draft();
+    const s = await h.bookings.submit(d.id, h.ids.devoteeId);
+    expect(s.acceptDeadlineAt).toBeTruthy();
+  });
+});
 
 const ledgerBalanced = async () => {
   const r = await h.db.execute(sql`

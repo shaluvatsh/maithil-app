@@ -1,0 +1,9 @@
+{
+  "name": "run-themaithil-driver",
+  "private": true,
+  "type": "module",
+  "description": "Self-contained Playwright dependency for driver.mjs. Not part of the app; do not add to the root pnpm workspace.",
+  "dependencies": {
+    "playwright": "1.62.1"
+  }
+}

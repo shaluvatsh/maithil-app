@@ -1,0 +1,12 @@
+-- Adds the Mithila Panchang as a third panjika.
+--
+-- Most purohits working in Kolkata are Maithil Brahmins, and the households they
+-- serve are Bengali, Marwari, Bihari and Maithil. Modelling only Bengal's two schools
+-- silently misserved a large share of both sides of the marketplace.
+--
+-- Note this is not just a third opinion on the same calendar: the Mithila Panchang
+-- keeps the classical PURNIMANT system, where months end at the full moon. A
+-- krishna-paksha tithi therefore falls in a different named month than it does under
+-- the amanta reckoning, which moves festival dates. Panchang for this school is
+-- hand-entered like Gupta Press until the month model is implemented.
+ALTER TYPE "public"."panjika_school" ADD VALUE IF NOT EXISTS 'mithila';

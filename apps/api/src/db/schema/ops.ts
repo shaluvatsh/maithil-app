@@ -1,6 +1,6 @@
 import {
   pgTable, text, integer, bigint, timestamp, jsonb, boolean, date,
-  index, uniqueIndex,
+  index, uniqueIndex, primaryKey,
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import { users } from './identity';
@@ -64,7 +64,12 @@ export const auditLog = pgTable('audit_log', {
  * triggers a charge. The original design covered payments and webhooks only.
  */
 export const idempotencyKeys = pgTable('idempotency_keys', {
-  key: text('key').primaryKey(),
+  // Scoped to (userId, key), not key alone: a client-supplied key is only unique
+  // within one caller's own requests. A shared PK on key meant one user's key
+  // collided with any other user who happened to send the same value - reading
+  // back a stranger's cached response, or being locked out by ANOTHER user's
+  // in-flight request. See ADR/review note on idempotency scoping.
+  key: text('key').notNull(),
   userId: text('user_id').notNull().references(() => users.id),
   endpoint: text('endpoint').notNull(),
   requestHash: text('request_hash').notNull(),
@@ -73,6 +78,7 @@ export const idempotencyKeys = pgTable('idempotency_keys', {
   createdAt: created(),
   expiresAt: ts('expires_at').notNull(),
 }, (t) => ({
+  pk: primaryKey({ columns: [t.userId, t.key] }),
   expiryIdx: index('idempotency_expiry_idx').on(t.expiresAt),
 }));
 

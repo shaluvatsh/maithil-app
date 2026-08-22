@@ -18,17 +18,25 @@ from the original handoff and why. The short version:
 ## Quick start
 
 ```bash
-pnpm install
-docker compose up -d              # Postgres 16 + Redis 7
-cp .env.example .env
+pnpm install                      # also builds the workspace packages
+cp .env.example .env              # then point DATABASE_URL at your Postgres
+docker compose up -d              # optional: Postgres 16 + Redis 7
 pnpm db:migrate
 pnpm db:seed                      # 25 Kolkata rituals, BOMs, panchang terms
-pnpm dev
+pnpm db:seed:dev                  # demo purohits + a devotee, so there is something to book
+pnpm dev                          # API on :3000, web on :3001
 ```
+
+Open **http://localhost:3001**. Sign in as `9830012345` (devotee) or `9830000101`
+(purohit) — the OTP is returned in the response while `OTP_DEV_BYPASS=true`, so there is
+no SMS provider to set up.
+
+No Redis needed locally: with `REDIS_URL` blank the code falls back to an in-memory
+store. Redis only backs slot holds and OTP rate limits.
 
 ```bash
 pnpm typecheck    # tsc across the workspace
-pnpm test         # 89 tests; the integration suites run a real Postgres engine
+pnpm test         # 160 tests; the integration suites run a real Postgres engine
 ```
 
 No Docker needed for tests. The integration suites boot Postgres 18 compiled to
@@ -38,6 +46,7 @@ transaction semantics production relies on.
 ## Layout
 
 ```
+apps/web                  Next.js — devotee, purohit and admin surfaces
 apps/api
   src/domain/             pure domain logic: pricing, settlement, slots, panchang, ledger
   src/modules/            auth, catalog, availability, booking — services + controllers
@@ -68,21 +77,35 @@ commission cannot leak. A normal cash booking creates no ledger due at all.
 **3. Kolkata has two panjikas and they disagree.**
 Bisuddha Siddhanta and Gupta Press publish different dates for the same festival —
 in 2005 Durga Puja fell on two different sets of days. `school` is a column on every
-panchang table, the devotee picks theirs at signup, and where the two disagree the UI
-says so rather than picking a winner. See ADR 0003; this is the single most
-consequential decision in the R1 design.
+panchang table, the devotee picks theirs, and where the two disagree the UI says so
+rather than picking a winner. See ADR 0003; this is the single most consequential
+decision in the R1 design.
+
+Bisuddha Siddhanta is the drik (observed) school, so it is **computed in-house** from
+solar and lunar positions with the Lahiri ayanamsa — no vendor, no licence, no lead
+time (`domain/astronomy.ts`). Gupta Press applies Surya Siddhanta with the press's own
+corrections and cannot be reproduced, so it stays hand-entered once a year. Measured
+accuracy and its limits are documented in the astronomy module and pinned by tests.
 
 ## Status
 
-**Working end to end**: phone-OTP auth with JWT · localised catalogue · availability
-materialisation and slot toggles · the full booking lifecycle (draft → hold → submit →
-accept → confirm → start → complete) with slot locking, double-entry settlement,
-refunds and the transactional outbox · idempotent completion · REST controllers.
+**Working end to end**, API and UI: phone-OTP auth · localised Bengali catalogue ·
+purohit search with Bayesian rating, haversine proximity and a cold-start boost ·
+availability with travel buffers · the full booking lifecycle (draft → hold → submit →
+accept → confirm → start → complete) with slot locking, double-entry settlement and
+refunds · the transactional outbox · idempotent completion · a three-surface web app.
 
-**Not yet built**: Razorpay client and webhook handler (the confirm path is driven by
-`confirmOnTokenCapture`, which the webhook will call) · panchang provider client and
-nightly materialisation · WhatsApp/SMS delivery · search and matching · payouts ·
-the three client apps.
+Also built: **Razorpay Route** (orders, HMAC-verified webhooks, exactly-once capture,
+refunds) · **notifications** from the outbox with WhatsApp→SMS fallback · **payouts**
+with dues recovery and carried TDS · **panchang computed from astronomy**, no vendor ·
+**reviews** (double-blind, feeding search rank) · **admin verification queue** ·
+security headers, rate limiting, request IDs, graceful shutdown · Docker, Fly and CI.
+
+**Not yet built**: the two mobile apps · samagri partner kits · e-puja · subscriptions
+and referrals · GST invoice PDFs.
+
+**Read [`docs/PRODUCTION.md`](docs/PRODUCTION.md) before taking real money** — four
+things block go-live, and two of them are legal rather than technical.
 
 ### One bug worth knowing about
 
@@ -91,3 +114,15 @@ being incremented *inside* the transaction that then threw, so the rollback disc
 and a 6-digit code could be brute-forced without limit. OTP verification now happens
 before the transaction opens and the counter commits on its own connection. The test
 that catches it is `rejects a wrong OTP and counts the attempt`.
+
+## Troubleshooting
+
+**Blank page / 500 on the web app, `Module not found: Can't resolve '@themaithil/region'`.**
+The workspace libraries compile to `dist/`, which is gitignored. `pnpm install` rebuilds
+them via each package's `prepare` script, and `pnpm dev` builds them first through turbo —
+so this should not recur. If you hit it after pulling, run `pnpm install` once.
+
+**`next: command not found`.** A new app or package was added and its dependencies are
+not installed. `pnpm install`.
+
+**Ports.** API on 3000, web on 3001. `lsof -ti :3000 | xargs kill` if one is stuck.

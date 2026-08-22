@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Body, UsePipes } from '@nestjs/common';
+import { Controller, Post, Get, Body, UsePipes, Inject } from '@nestjs/common';
 import { ZodValidationPipe } from '../../common/zod.pipe';
 import { AuthService } from './auth.service';
 import { Public, CurrentUser } from './guards';
@@ -8,9 +8,28 @@ import { z } from 'zod';
 
 const RefreshBody = z.object({ refreshToken: z.string().min(10) });
 
+const RegisterBody = z.object({
+  name: z.string().min(1).max(120),
+  email: z.string().email(),
+  phone: z.string().min(10).max(15),
+  password: z.string().min(8).max(200),
+  /**
+   * Registering as a purohit was impossible: this endpoint hardcoded
+   * `role: 'devotee'`, so the only purohits in existence came from `db:seed:dev`.
+   *
+   * Only these two are selectable. `admin` and `ops` are never self-assignable —
+   * an open enum here would be a privilege-escalation endpoint.
+   */
+  role: z.enum(['devotee', 'pandit']).default('devotee'),
+});
+const LoginBody = z.object({
+  email: z.string().email(),
+  password: z.string().min(1).max(200),
+});
+
 @Controller('v1/auth')
 export class AuthController {
-  constructor(private readonly auth: AuthService) {}
+  constructor(@Inject(AuthService) private readonly auth: AuthService) {}
 
   @Public()
   @Post('otp/request')
@@ -31,6 +50,20 @@ export class AuthController {
   @UsePipes(new ZodValidationPipe(RefreshBody))
   refresh(@Body() body: z.infer<typeof RefreshBody>) {
     return this.auth.refresh(body.refreshToken);
+  }
+
+  @Public()
+  @Post('register')
+  @UsePipes(new ZodValidationPipe(RegisterBody))
+  register(@Body() body: z.infer<typeof RegisterBody>) {
+    return this.auth.register(body);
+  }
+
+  @Public()
+  @Post('login')
+  @UsePipes(new ZodValidationPipe(LoginBody))
+  login(@Body() body: z.infer<typeof LoginBody>) {
+    return this.auth.loginWithPassword(body);
   }
 
   @Get('me')

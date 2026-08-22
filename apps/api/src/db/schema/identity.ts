@@ -3,7 +3,7 @@ import {
   numeric, index, uniqueIndex, jsonb,
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
-import { userRoleEnum, localeEnum, panjikaSchoolEnum, kycStatusEnum, kycTypeEnum } from './enums';
+import { userRoleEnum, localeEnum, panjikaSchoolEnum, kycStatusEnum, kycTypeEnum, payoutMethodEnum } from './enums';
 
 const id = () => text('id').primaryKey();
 const ts = (n: string) => timestamp(n, { withTimezone: true, mode: 'string' });
@@ -27,6 +27,9 @@ export const users = pgTable('users', {
   phone: text('phone').notNull().unique(),
   name: text('name'),
   email: text('email'),
+  /** scrypt, encoded as N$r$p$salt$hash. Null for OTP-only accounts. */
+  passwordHash: text('password_hash'),
+  emailVerifiedAt: ts('email_verified_at'),
   role: userRoleEnum('role').notNull().default('devotee'),
   locale: localeEnum('locale').notNull().default('bn'),
   /**
@@ -73,6 +76,12 @@ export const panditProfiles = pgTable('pandit_profiles', {
   serviceRadiusKm: integer('service_radius_km').notNull().default(15),
   baseLat: doublePrecision('base_lat'),
   baseLng: doublePrecision('base_lng'),
+  /**
+   * A 30-second recording of them chanting, and what they are reciting.
+   * Devotees judge shuddha uchcharan and nobody in this category lets them hear it.
+   */
+  chantingSampleUrl: text('chanting_sample_url'),
+  chantingSampleLabel: text('chanting_sample_label'),
   kycStatus: kycStatusEnum('kyc_status').notNull().default('pending'),
   kycVerifiedAt: ts('kyc_verified_at'),
   kycExpiresAt: ts('kyc_expires_at'),
@@ -85,8 +94,23 @@ export const panditProfiles = pgTable('pandit_profiles', {
     .notNull().default(500000),
   cashJobsEnabled: boolean('cash_jobs_enabled').notNull().default(true),
   autoAccept: boolean('auto_accept').notNull().default(false),
-  /** Razorpay Route linked account. Null until P0-0 procurement completes. */
+  /**
+   * Where the money goes.
+   *
+   * `linkedAccountId` is the provider's opaque handle for the purohit's account and
+   * is the ONLY thing a transfer needs. The account number is sent to the provider
+   * once, when the linked account is created, and never stored here — so this table
+   * is not a list of bank accounts, and a payout is addressed to a token rather than
+   * to digits. `payoutLast4` and `payoutIfsc` exist so a purohit can recognise which
+   * account they gave us; an IFSC identifies a branch, not a person.
+   */
   linkedAccountId: text('linked_account_id'),
+  payoutMethod: payoutMethodEnum('payout_method'),
+  payoutHolderName: text('payout_holder_name'),
+  payoutLast4: text('payout_last4'),
+  payoutIfsc: text('payout_ifsc'),
+  payoutUpiVpa: text('payout_upi_vpa'),
+  payoutLinkedAt: ts('payout_linked_at'),
   /** Cold-start: guaranteed impressions until this hits zero. See search service. */
   newSupplyBoostRemaining: integer('new_supply_boost_remaining').notNull().default(20),
   createdAt: created(),

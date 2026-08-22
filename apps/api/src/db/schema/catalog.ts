@@ -1,5 +1,5 @@
 import {
-  pgTable, text, integer, bigint, boolean, numeric, timestamp,
+  pgTable, text, integer, bigint, boolean, numeric, timestamp, jsonb,
   primaryKey, index, uniqueIndex,
 } from 'drizzle-orm/pg-core';
 import { cities, panditProfiles } from './identity';
@@ -17,6 +17,14 @@ export const rituals = pgTable('rituals', {
   defaultSlotSpan: integer('default_slot_span').notNull().default(1),
   /** Whether muhurat matters. Tarpan is date-fixed; Satyanarayan is flexible. */
   isMuhuratSensitive: boolean('is_muhurat_sensitive').notNull().default(true),
+  /** Browse taxonomy. Owned by packages/region — see categories.ts. */
+  category: text('category').notNull().default('festival-pujas'),
+  /**
+   * `virtual` services have no travel, no samagri and no address — the purohit
+   * never leaves their own home. Slot booking, the ledger and settlement are all
+   * unchanged; only the price inputs and the venue differ.
+   */
+  deliveryMode: text('delivery_mode').notNull().default('at_home'),
   sortOrder: integer('sort_order').notNull().default(100),
   active: boolean('active').notNull().default(true),
   createdAt: created(),
@@ -75,7 +83,11 @@ export const bomItems = pgTable('bom_items', {
   qty: numeric('qty', { precision: 10, scale: 3 }).notNull(),
   unit: text('unit').notNull(),
   grade: text('grade'),
-  catalogPricePaise: bigint('catalog_price_paise', { mode: 'number' }).notNull(),
+  /**
+   * Price for the quantity on THIS line — ₹180 against qty '250', unit 'g' means
+   * ₹180 for 250 g. It is not a unit rate, so never multiply it by `qty`.
+   */
+  linePricePaise: bigint('line_price_paise', { mode: 'number' }).notNull(),
   perishable: boolean('perishable').notNull().default(false),
   sortOrder: integer('sort_order').notNull().default(0),
 }, (t) => ({
@@ -89,3 +101,41 @@ export const bomItemTranslations = pgTable('bom_item_translations', {
 }, (t) => ({
   pk: primaryKey({ columns: [t.bomItemId, t.locale] }),
 }));
+
+/**
+ * Membership plans.
+ *
+ * The home page advertised a plan with a price, a discount, a saving and a
+ * countdown, all of them string literals in a React component. Nobody could buy
+ * it and the countdown counted down from nothing. A plan is now a row: if there
+ * is no row, the page shows no offer.
+ */
+export const membershipPlans = pgTable('membership_plans', {
+  id: id(),
+  slug: text('slug').notNull().unique(),
+  name: text('name').notNull(),
+  tagline: text('tagline').notNull().default(''),
+  pricePaise: bigint('price_paise', { mode: 'number' }).notNull(),
+  /** How long the membership lasts once bought, not how long it is on sale. */
+  durationDays: integer('duration_days').notNull(),
+  /** Basis points off the ritual subtotal. A percentage as a float is a rounding dispute. */
+  discountBps: integer('discount_bps').notNull(),
+  benefits: jsonb('benefits').$type<string[]>().notNull().default([]),
+  /** Null means on sale indefinitely; a date is what the countdown reads. */
+  offerEndsOn: text('offer_ends_on'),
+  active: boolean('active').notNull().default(true),
+  /**
+   * Distinct from `active`. `active` means "show this offer"; this means "money can
+   * change hands for it". Today the discount is not enforced at booking time, so a
+   * working Join button would charge for a benefit nothing applies.
+   */
+  purchasable: boolean('purchasable').notNull().default(false),
+  createdAt: created(),
+});
+
+/** A membership priced for Mumbai is not priced for Patna. */
+export const membershipCityPrices = pgTable('membership_city_prices', {
+  planId: text('plan_id').notNull().references(() => membershipPlans.id, { onDelete: 'cascade' }),
+  cityId: text('city_id').notNull().references(() => cities.id, { onDelete: 'cascade' }),
+  pricePaise: bigint('price_paise', { mode: 'number' }).notNull(),
+}, (t) => ({ pk: primaryKey({ columns: [t.planId, t.cityId] }) }));

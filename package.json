@@ -9,12 +9,15 @@
     "lint": "turbo run lint",
     "dev": "turbo run dev",
     "db:up": "docker compose up -d",
-    "db:migrate": "pnpm --filter @themaithil/api db:migrate",
-    "db:seed": "pnpm --filter @themaithil/api db:seed"
+    "db:migrate": "turbo run db:migrate --filter @themaithil/api",
+    "db:seed": "turbo run db:seed --filter @themaithil/api",
+    "db:seed:dev": "turbo run db:seed:dev --filter @themaithil/api"
   },
   "devDependencies": {
     "turbo": "^2.3.3",
     "typescript": "^5.7.2"
   },
-  "engines": { "node": ">=20" }
+  "engines": {
+    "node": ">=20"
+  }
 }

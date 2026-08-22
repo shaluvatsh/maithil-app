@@ -1,5 +1,5 @@
 import { ulid } from 'ulid';
-import { sql, eq, isNull, inArray } from 'drizzle-orm';
+import { sql, eq, and, isNull, inArray } from 'drizzle-orm';
 import type { Db, Executor } from '../db/client';
 import { outbox, processedEvents } from '../db/schema/index';
 
@@ -72,5 +72,21 @@ export class OutboxService {
       .onConflictDoNothing()
       .returning({ eventId: processedEvents.eventId });
     return res.length > 0;
+  }
+
+  /**
+   * Reverses `claimForConsumer` after a failed handler, so the event is retryable
+   * on the next delivery instead of permanently marked done.
+   *
+   * The claim used to be the only record of "processing this" and it was written
+   * BEFORE the handler ran - so a crash, or any thrown error, between the claim and
+   * a successful send left the row claimed forever with nothing actually sent. A
+   * notification failure is explicitly swallowed rather than propagated (it must
+   * never block the relay), which made that failure mode silent: no error surfaced
+   * anywhere, and the devotee or purohit simply never got the message.
+   */
+  async unclaimForConsumer(db: Executor, consumer: string, eventId: string): Promise<void> {
+    await db.delete(processedEvents)
+      .where(and(eq(processedEvents.consumer, consumer), eq(processedEvents.eventId, eventId)));
   }
 }

@@ -1,0 +1,2373 @@
+/*!*****************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************!*\
+  !*** css ../../node_modules/.pnpm/next@14.2.21_react-dom@18.3.1_react@18.3.1__react@18.3.1/node_modules/next/dist/build/webpack/loaders/css-loader/src/index.js??ruleSet[1].rules[14].oneOf[12].use[2]!../../node_modules/.pnpm/next@14.2.21_react-dom@18.3.1_react@18.3.1__react@18.3.1/node_modules/next/dist/build/webpack/loaders/postcss-loader/src/index.js??ruleSet[1].rules[14].oneOf[12].use[3]!./app/globals.css ***!
+  \*****************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************/
+/* ============================================================================
+   The Maithil — design system, matched to themaithil.com
+   Orange primary, warm gradients, soft elevation, heavy sans headings.
+   ========================================================================== */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+:root {
+  /*
+   * The page gutter. `.wrap` pads by it, and every full-bleed scroller cancels it
+   * with a negative margin and puts it back as padding. It is a variable because
+   * three of those scrollers had it written out as a bare 20px, and a scroller
+   * whose number drifts from the wrap's is a row that no longer lines up with the
+   * heading above it.
+   */
+  --gutter: 20px;
+
+  /* Brand */
+  --orange: #F97316;
+  --orange-600: #EA580C;
+  --orange-700: #C2410C;
+  --orange-50: #FFF7ED;
+  --orange-100: #FFEDD5;
+
+  --blue: #2563EB;
+  --blue-50: #EFF6FF;
+  --blue-100: #DBEAFE;
+
+  --green: #16A34A;
+  --green-50: #F0FDF4;
+  --green-100: #DCFCE7;
+
+  --purple: #A855F7;
+  --pink: #EC4899;
+  --rose: #F43F5E;
+  --red: #EF4444;
+
+  /* Neutrals */
+  --ink: #0F172A;
+  --ink-2: #334155;
+  --muted: #64748B;
+  --faint: #94A3B8;
+  --line: #E2E8F0;
+  --line-soft: #F1F5F9;
+  --white: #FFFFFF;
+  --page: #FFFFFF;
+
+  /* Warm surfaces */
+  --cream: #FFFBEB;
+  --cream-2: #FEF3C7;
+  --blush: #FDF2F8;
+
+  --radius-sm: 8px;
+  --radius: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+
+  --shadow-sm: 0 1px 2px rgba(15,23,42,.06), 0 1px 3px rgba(15,23,42,.04);
+  --shadow: 0 2px 8px rgba(15,23,42,.06), 0 1px 3px rgba(15,23,42,.04);
+  --shadow-md: 0 6px 20px rgba(15,23,42,.08), 0 2px 6px rgba(15,23,42,.04);
+  --shadow-lg: 0 14px 40px rgba(15,23,42,.10);
+
+  --font: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-native: 'Noto Sans Bengali', 'Noto Sans Devanagari', var(--font);
+  --native-optical-scale: 1.05;
+  --font-native-display: var(--font-native);
+  --font-native-ui: var(--font-native);
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; max-width: 100%; overflow-x: clip; }
+img, svg, video { max-width: 100%; height: auto; }
+/* Identifiers, emails and long words must wrap rather than widen their container. */
+.mono, code, pre { overflow-wrap: anywhere; }
+body {
+  background: var(--page);
+  color: var(--ink);
+  font-family: var(--font);
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+:lang(bn), :lang(hi), .bn { font-family: var(--font-native); }
+
+h1, h2, h3 { margin: 0; letter-spacing: -.025em; font-weight: 800; line-height: 1.15; }
+h1 { font-size: clamp(2rem, 4.6vw, 3.4rem); }
+h2 { font-size: clamp(1.6rem, 3vw, 2.3rem); }
+h3 { font-size: 1.05rem; font-weight: 700; letter-spacing: -.01em; }
+p { margin: 0 0 1rem; }
+a { color: var(--orange-600); text-decoration: none; }
+.num, td.num, th.num { font-feature-settings: "tnum"; font-variant-numeric: tabular-nums; text-align: right; }
+.muted { color: var(--muted); }
+.faint { color: var(--faint); }
+.mono { font-feature-settings: "tnum"; font-variant-numeric: tabular-nums; }
+
+/* ---------------------------------------------------------------- header -- */
+.nav {
+  position: -webkit-sticky;
+  position: sticky; top: 0; z-index: 40;
+  background: var(--white);
+  border-bottom: 1px solid var(--line);
+}
+.nav-inner {
+  max-width: 1280px; margin: 0 auto; padding: 0 20px;
+  height: 68px; display: flex; align-items: center; gap: 16px;
+}
+.brand { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+.brand .mark {
+  width: 40px; height: 40px; border-radius: 10px;
+  background: var(--cream); border: 1px solid var(--cream-2);
+  display: grid; place-items: center;
+  font-size: 21px; color: var(--orange-700); font-weight: 700;
+}
+.brand .word { font-size: 1.3rem; font-weight: 800; color: var(--orange-600); letter-spacing: -.02em; }
+
+.city-pill {
+  display: inline-flex; align-items: center; gap: 8px; color: var(--ink);
+  background: var(--white); border: 1px solid var(--line);
+  border-radius: 999px; padding: 10px 18px;
+  font-size: .95rem; font-weight: 600; color: var(--ink);
+  cursor: pointer; box-shadow: var(--shadow-sm);
+}
+.city-pill:hover { border-color: var(--faint); background: var(--white); }
+.city-pill .pin { color: var(--orange-600); }
+
+.nav .links { display: flex; gap: 22px; margin-left: 10px; }
+.nav .links a { color: var(--ink-2); font-size: .95rem; font-weight: 500; }
+.nav .links a:hover, .nav .links a.on { color: var(--orange-600); }
+.nav .right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+.icon-btn {
+  width: 44px; height: 44px; border-radius: var(--radius); flex: 0 0 44px;
+  border: 1px solid var(--line); background: var(--white);
+  display: grid; place-items: center; cursor: pointer; color: var(--ink-2);
+  padding: 0;
+}
+.icon-btn:hover { background: var(--line-soft); border-color: var(--faint); }
+
+/* ------------------------------------------------------------- sections -- */
+.wrap { max-width: 1280px; margin: 0 auto; padding: 0 var(--gutter); }
+.section { padding: 64px 0; }
+/**
+ * Home-page rhythm.
+ *
+ * Every section used to pay 64px top + 64px bottom, so consecutive sections put
+ * 128px of nothing between two rows of cards, and eight of them added a full
+ * screen of scroll to the page. `tight` collapses the join: sections stack with a
+ * single 44px gutter and only the first pays a top margin.
+ */
+.section.tight { padding: 0 0 44px; }
+.section.tight:first-of-type { padding-top: 44px; }
+
+/**
+ * Left-aligned section heading with an action on the right. Replaces three
+ * hand-rolled `.spread` blocks that each set their own h2 font-size inline.
+ */
+.rail-head {
+  display: flex; align-items: flex-end; justify-content: space-between;
+  gap: 20px; flex-wrap: wrap; margin: 32px 0 20px;
+}
+.rail-head h2 { font-size: clamp(1.4rem, 2.2vw, 1.8rem); }
+.rail-head p { margin: 6px 0 0; }
+.rail-aside { display: flex; align-items: center; gap: 12px; }
+/* Only meaningful once the rail becomes a carousel; see the 640px block. */
+
+.kicker-pill {
+  display: inline-block; background: var(--white); color: var(--orange-600);
+  border: 1px solid var(--orange-100); border-radius: 999px;
+  padding: 7px 16px; font-size: .72rem; font-weight: 700;
+  letter-spacing: .1em; text-transform: uppercase; margin-bottom: 18px;
+}
+
+/* ----------------------------------------------------------------- hero --
+
+   Vertical budget, deliberately small.
+
+   The old hero was 72px of padding, a two-line display heading, a lede, a row of
+   four 55px trust pills, the search bar, a 108px stats block and 84px of padding
+   below: about 630px, on top of a 68px sticky header. On a laptop that is the
+   entire first screen, and the first thing anyone could actually book sat near
+   1400px. The pills repeated claims the footer already makes and the stats were
+   three numbers rendered at 2.1rem.
+
+   The rules below hold the hero near 330px. `heroBudget` in css-invariants.test.ts
+   adds these up and fails if the total creeps back over 380. -------------------- */
+.hero {
+  background: linear-gradient(180deg, #FFFDF5 0%, #FEF9E7 60%, #FDF6E3 100%);
+  padding: 36px 0 30px;
+}
+/* Two columns above 900px, so the almanac sits beside the search rather than
+   below the fold; one below, where the panchang follows the search box. */
+/*
+ * Two columns, then a strip across both.
+ *
+ * The strip used to be a row of text pills labelled "Popular right now", which
+ * looked like a filter bar and repeated the names already inside the search box
+ * above it. Same entry points, given the weight the top of a page about a ceremony
+ * deserves.
+ */
+.hero-grid {
+  display: grid; grid-gap: 22px 40px; gap: 22px 40px; align-items: center;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, .75fr);
+}
+.hero-say { min-width: 0; }
+.hero h1 { max-width: 18ch; font-size: clamp(1.8rem, 3.1vw, 2.4rem); }
+.hero .lede {
+  color: var(--ink-2); font-size: 1rem; margin: 10px 0 0; max-width: 52ch;
+}
+.hero-trust {
+  color: var(--muted); font-size: .88rem; margin: 12px 0 0;
+}
+.hero-trust strong { color: var(--ink-2); font-weight: 700; }
+
+/* ------------------------------------------------------- hero panchang -- */
+.pcard-hero {
+  background: rgba(255, 255, 255, .8);
+  border: 1px solid #FBE8C8; border-radius: var(--radius-xl);
+  padding: 18px 20px; box-shadow: var(--shadow-sm);
+  -webkit-backdrop-filter: blur(4px);
+          backdrop-filter: blur(4px);
+}
+.ph-top { display: flex; align-items: center; gap: 12px; }
+.ph-moon {
+  display: grid; place-items: center; flex: 0 0 40px; width: 40px; height: 40px;
+  border-radius: 50%; font-size: 20px; line-height: 1;
+  background: var(--white); border: 1px solid #FBE8C8; box-shadow: var(--shadow-sm);
+}
+.ph-today { display: flex; flex-direction: column; min-width: 0; }
+.ph-cap {
+  font-size: .64rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase;
+  color: var(--orange-700);
+}
+.ph-tithi { font-size: 1.02rem; line-height: 1.25; }
+.ph-today .muted { font-size: .85rem; }
+
+.ph-windows { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 14px; }
+.ph-list { list-style: none; margin: 14px 0 0; padding: 12px 0 0; border-top: 1px dashed #F0DCC0; }
+.ph-list a {
+  display: flex; align-items: baseline; gap: 10px; color: var(--ink);
+  padding: 6px 8px; margin: 0 -8px; border-radius: var(--radius-sm); font-size: .9rem;
+}
+.ph-list a:hover { background: var(--orange-50); }
+.ph-when {
+  font-feature-settings: "tnum";
+  font-variant-numeric: tabular-nums; color: var(--muted); font-size: .84rem;
+  flex: 0 0 62px;
+}
+.ph-name { font-weight: 600; }
+.ph-go { margin-left: auto; color: var(--orange-600); font-weight: 700; }
+.ph-link { display: inline-block; margin-top: 12px; font-size: .88rem; font-weight: 600; }
+.pcard-hero .ps-now { margin: 12px 0 0; }
+
+.searchwrap { position: relative; margin: 18px 0 0; max-width: 560px; }
+.searchbar {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--white); border-radius: 999px;
+  padding: 6px 6px 6px 18px; box-shadow: var(--shadow-md);
+  border: 1px solid #FDE9C8;
+}
+.searchbar:focus-within { border-color: var(--orange); box-shadow: var(--shadow-lg); }
+.searchbar-icon { font-size: 1rem; line-height: 1; opacity: .7; }
+.searchbar input {
+  flex: 1 1; border: 0; outline: 0; font-size: 1rem; color: var(--ink);
+  background: transparent; padding: 11px 0; min-width: 0;
+  -moz-appearance: none;
+       appearance: none; -webkit-appearance: none;
+}
+.searchbar input::-webkit-search-cancel-button { -webkit-appearance: none; appearance: none; }
+.searchbar input::placeholder { color: var(--faint); }
+.searchbar button {
+  background: linear-gradient(180deg, var(--orange), var(--orange-600));
+  color: #fff; border: 0; border-radius: 999px; padding: 11px 24px;
+  font-weight: 700; font-size: .95rem; cursor: pointer; white-space: nowrap;
+}
+
+/* Suggestions overlay the content below rather than pushing it down — a list that
+   reflows the page on every keystroke is unusable. */
+.suggest {
+  position: absolute; z-index: 30; left: 0; right: 0; top: calc(100% + 8px);
+  margin: 0; padding: 6px; list-style: none; text-align: left;
+  background: var(--white); border: 1px solid var(--line);
+  border-radius: var(--radius-lg); box-shadow: var(--shadow-lg);
+  max-height: 340px; overflow-y: auto;
+}
+.suggest-item, .suggest-all {
+  display: flex; width: 100%; align-items: baseline; gap: 10px;
+  background: none; border: 0; cursor: pointer; text-align: left;
+  padding: 10px 14px; border-radius: var(--radius); font: inherit; color: var(--ink);
+}
+.suggest-item.on, .suggest-all:hover { background: var(--orange-50); }
+.suggest-item .s-name { font-weight: 600; }
+.suggest-item .s-hint { color: var(--muted); font-size: .85rem; margin-left: auto; }
+.suggest-all { color: var(--orange-600); font-weight: 600; font-size: .92rem; }
+.ps-win {
+  display: inline-flex; align-items: baseline; gap: 6px; white-space: nowrap;
+  padding: 3px 10px; border-radius: 999px; font-size: .84rem;
+  background: var(--white); border: 1px solid var(--line);
+}
+.ps-win .w-name { font-weight: 700; }
+.ps-win .w-time { font-feature-settings: "tnum"; font-variant-numeric: tabular-nums; color: var(--ink-2); }
+.ps-win.good { border-color: var(--green-100); }
+.ps-win.good .w-name { color: var(--green); }
+.ps-win.bad { border-color: #FECDD3; }
+.ps-win.bad .w-name { color: #BE123C; }
+/* The window containing the current minute is filled rather than outlined. */
+.ps-win.good.live { background: var(--green-50); border-color: var(--green); }
+.ps-win.bad.live { background: #FFF1F2; border-color: var(--rose); }
+
+.ps-now {
+  display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
+  font-size: .82rem; font-weight: 700; padding: 3px 11px; border-radius: 999px;
+}
+.ps-now::before {
+  content: ''; width: 7px; height: 7px; border-radius: 50%; background: currentColor;
+  animation: pspulse 2.4s ease-in-out infinite;
+}
+.ps-now.abhijit { color: #15803D; background: var(--green-100); }
+.ps-now.rahu { color: #BE123C; background: #FFE4E6; }
+@keyframes pspulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+@media (prefers-reduced-motion: reduce) { .ps-now::before { animation: none; } }
+
+/* ---------------------------------------------------------- day chips -- */
+.daystrip {
+  display: flex; gap: 12px; overflow-x: auto; max-width: 100%; padding-bottom: 6px;
+  scroll-snap-type: x proximity;
+}
+.daystrip > * { scroll-snap-align: start; }
+.daychip {
+  position: relative; overflow: hidden;
+  flex: 0 0 auto; display: flex; flex-direction: column; align-items: center; gap: 1px;
+  min-width: 132px; padding: 16px 14px 14px; color: inherit;
+  background: var(--white); border: 1px solid var(--line);
+  border-radius: var(--radius-lg); box-shadow: var(--shadow-sm);
+  transition: transform .18s ease-out, box-shadow .18s ease-out, border-color .18s ease-out;
+}
+/* A saffron cap, so the strip reads as auspicious dates rather than a date picker. */
+.daychip::before {
+  content: ''; position: absolute; inset: 0 0 auto; height: 4px;
+  background: linear-gradient(90deg, var(--orange), #FBBF24);
+}
+.daychip:hover, .daychip:focus-visible {
+  transform: translateY(-3px); box-shadow: var(--shadow-md); border-color: var(--orange);
+}
+.daychip.today { border-color: var(--orange); background: var(--orange-50); }
+
+.daychip .d-head {
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  width: 100%; margin-bottom: 2px;
+}
+.daychip .dow {
+  font-size: .7rem; letter-spacing: .08em; text-transform: uppercase;
+  font-weight: 700; color: var(--muted);
+}
+.daychip.today .dow { color: var(--orange-700); }
+.daychip .dmoon { font-size: .82rem; line-height: 1; }
+.daychip .dnum { font-size: 1.85rem; font-weight: 800; line-height: 1.02; }
+.daychip .dmon {
+  font-size: .74rem; color: var(--muted); margin-top: -1px;
+  letter-spacing: .06em; text-transform: uppercase;
+}
+.daychip .dtithi {
+  font-size: .8rem; color: var(--ink-2); margin-top: 8px; text-align: center;
+  min-height: 2.4em; display: flex; align-items: center;
+}
+.daychip .dcta {
+  margin-top: 8px; font-size: .76rem; font-weight: 700; color: var(--orange-600);
+  opacity: 0; transform: translateY(3px); transition: opacity .18s, transform .18s;
+}
+.daychip:hover .dcta, .daychip:focus-visible .dcta { opacity: 1; transform: none; }
+/* Touch has no hover, so the affordance has to be there from the start. */
+@media (hover: none) { .daychip .dcta { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .daychip, .daychip .dcta { transition: none; }
+}
+
+/* -------------------------------------------------------------- outband --
+   Two ways out of the page, built from the same parts as a category tile.
+   They were previously gradient panels with their own type scale and their own
+   button treatment — a second card language on a page that already had one, which
+   made them read as advertising rather than as part of the catalogue. */
+.outband { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); grid-gap: 22px; gap: 22px; }
+.outband > * { min-width: 0; }
+.outcard {
+  display: flex; flex-direction: column; align-items: center; text-align: center;
+  color: inherit; background: var(--white); border: 1px solid var(--line);
+  border-radius: var(--radius-lg); padding: 26px 20px;
+  box-shadow: var(--shadow-sm);
+  transition: transform .18s ease-out, box-shadow .18s ease-out;
+}
+.outcard:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); }
+.outcard .tile {
+  width: 64px; height: 64px; border-radius: 16px; margin-bottom: 16px;
+  display: grid; place-items: center; font-size: 30px;
+}
+.outcard .name { font-weight: 700; font-size: 1.02rem; }
+.outcard .desc {
+  color: var(--muted); font-size: .88rem; margin-top: 6px; max-width: 30ch;
+}
+.outcard .go {
+  margin-top: 14px; font-weight: 700; font-size: .88rem; color: var(--orange-600);
+}
+@media (prefers-reduced-motion: reduce) { .outcard { transition: none; } }
+
+/* ------------------------------------------------------------- hub page -- */
+.hub-head { padding: 40px 0 10px; max-width: 68ch; }
+.hub-head .lede { font-size: 1.06rem; margin-top: 12px; }
+.hub-jump { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 22px; }
+.jump-pill {
+  display: inline-flex; align-items: center; gap: 7px; color: var(--ink);
+  background: var(--white); border: 1px solid var(--line); border-radius: 999px;
+  padding: 8px 15px; font-size: .9rem; font-weight: 600;
+}
+.jump-pill:hover { border-color: var(--orange); color: var(--orange-700); }
+.jump-pill .n {
+  font-size: .74rem; font-weight: 700; color: var(--muted);
+  background: var(--line-soft); border-radius: 999px; padding: 1px 7px;
+}
+
+.hub-group { padding: 34px 0 8px; scroll-margin-top: 84px; }
+.hub-group-head {
+  display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+  padding-bottom: 16px; border-bottom: 1px solid var(--line);
+}
+.hub-group-head h2 { font-size: 1.4rem; }
+.hub-group-head p { margin: 4px 0 0; font-size: .95rem; }
+.hub-group-head .btn { margin-left: auto; }
+.hub-tile {
+  width: 46px; height: 46px; border-radius: 13px; flex: 0 0 46px;
+  display: grid; place-items: center; font-size: 22px;
+}
+
+/*
+ * The catalogue grid.
+ *
+ * Was `.hub-list`: rows of name / description / mode / price laid out as a
+ * two-column grid that degraded into four unstyled lines on anything narrow. It
+ * read as a database dump rather than as the same product the home page shows, so
+ * arriving here from a category tile felt like leaving the site.
+ */
+.hub-grid {
+  list-style: none; margin: 0; padding: 0;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(268px, 1fr)); grid-gap: 14px; gap: 14px;
+}
+.hub-grid > li { min-width: 0; }
+.hub-card {
+  position: relative; overflow: hidden;
+  display: flex; flex-direction: column; height: 100%; color: inherit;
+  background: var(--white); border: 1px solid var(--line);
+  border-radius: var(--radius-lg); padding: 16px 18px 14px;
+  box-shadow: var(--shadow-sm);
+  transition: transform .18s ease-out, box-shadow .18s ease-out, border-color .18s ease-out;
+}
+/* The category's own colour, carried down the page so the grouping survives a
+   scroll past the heading that declared it. */
+.hub-card::before {
+  content: ''; position: absolute; inset: 0 auto 0 0; width: 4px;
+  background: var(--group-tint, var(--orange));
+}
+.hub-card:hover {
+  transform: translateY(-2px); box-shadow: var(--shadow-md); border-color: var(--faint);
+}
+.hc-top { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.hc-name { font-weight: 700; font-size: 1rem; letter-spacing: -.01em; }
+.hub-card:hover .hc-name { color: var(--orange-700); }
+.hc-mode {
+  flex: 0 0 auto; font-size: .68rem; font-weight: 700; letter-spacing: .05em;
+  text-transform: uppercase; color: var(--muted);
+  background: var(--line-soft); border-radius: 999px; padding: 3px 9px;
+}
+.hc-mode.online { background: var(--blue-100); color: var(--blue); }
+.hc-desc {
+  color: var(--muted); font-size: .87rem; line-height: 1.5; margin: 7px 0 0;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  /* Reserved, so every price line in a row sits at the same height. */
+  min-height: calc(.87rem * 1.5 * 2);
+}
+.hc-foot {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
+  margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line-soft);
+  font-size: .84rem; color: var(--muted);
+}
+.hc-price strong {
+  font-size: 1.02rem; font-weight: 800; color: var(--ink); margin-left: 3px;
+}
+.hc-dur { white-space: nowrap; font-feature-settings: "tnum"; font-variant-numeric: tabular-nums; }
+
+/* The jump bar carries the same tiles as the groups it links to. */
+.jp-tile {
+  width: 20px; height: 20px; border-radius: 6px; display: grid; place-items: center;
+  font-size: 11px; flex: 0 0 20px;
+}
+@media (prefers-reduced-motion: reduce) { .hub-card { transition: none; } }
+
+.hub-foot {
+  margin: 46px 0 60px; padding: 30px; text-align: center;
+  background: var(--cream); border: 1px solid var(--cream-2); border-radius: var(--radius-xl);
+}
+.hub-foot p { max-width: 52ch; margin: 8px auto 18px; }
+
+/* Keeps a "See all" shelf continuous with the rail it came from. */
+.shelf-head {
+  display: flex; align-items: flex-end; justify-content: space-between;
+  gap: 16px; flex-wrap: wrap; margin-bottom: 18px;
+}
+.shelf-head h2 { font-size: 1.5rem; }
+.shelf-head p { margin: 4px 0 0; }
+
+/* ------------------------------------------------------ panchang calendar --
+   A month is a shape. The page rendered thirty table rows, which is the right
+   form for comparing sunrise times and the wrong one for "where in the month does
+   this fall" — you cannot see a fortnight in a list. */
+.cal { margin: 8px 0 6px; }
+.cal-head, .cal-grid {
+  display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); grid-gap: 6px; gap: 6px;
+}
+.cal-dow {
+  text-align: center; font-size: .7rem; font-weight: 800; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--muted); padding-bottom: 8px;
+}
+.cal-cell {
+  position: relative; min-height: 84px; display: flex; flex-direction: column;
+  gap: 2px; padding: 8px 9px; color: inherit;
+  background: var(--white); border: 1px solid var(--line);
+  border-radius: var(--radius); overflow: hidden;
+  transition: border-color .15s ease-out, box-shadow .15s ease-out;
+}
+.cal-cell:hover { border-color: var(--orange); box-shadow: var(--shadow-sm); }
+.cal-cell.empty { background: var(--line-soft); border-style: dashed; min-height: 84px; }
+.cal-cell.good { background: var(--green-50); border-color: var(--green-100); }
+.cal-cell.today { border-color: var(--orange); box-shadow: inset 0 0 0 1px var(--orange); }
+.cal-cell.differs::after {
+  content: ''; position: absolute; top: 0; right: 0;
+  border-width: 0 12px 12px 0; border-style: solid;
+  border-color: transparent var(--faint) transparent transparent;
+}
+.c-top { display: flex; align-items: center; justify-content: space-between; gap: 4px; }
+.c-num { font-weight: 700; font-size: .98rem; }
+.c-mon { font-size: .68rem; color: var(--orange-700); text-transform: uppercase; }
+.c-moon { font-size: .78rem; line-height: 1; }
+.c-tithi {
+  font-size: .74rem; color: var(--ink-2); line-height: 1.25;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.c-era { font-size: .68rem; color: var(--faint); margin-top: auto; }
+.c-dot {
+  position: absolute; bottom: 7px; right: 8px;
+  width: 6px; height: 6px; border-radius: 50%; background: var(--green);
+}
+.cal-legend {
+  display: flex; flex-wrap: wrap; gap: 16px; margin-top: 14px;
+  font-size: .82rem; color: var(--muted);
+}
+.cal-legend span { display: inline-flex; align-items: center; gap: 7px; }
+.cal-legend .sw {
+  width: 13px; height: 13px; border-radius: 4px; border: 1px solid var(--line);
+  background: var(--white);
+}
+.cal-legend .sw.good { background: var(--green-50); border-color: var(--green-100); }
+.cal-legend .sw.today { border-color: var(--orange); box-shadow: inset 0 0 0 1px var(--orange); }
+.cal-legend .sw.differs { background: var(--faint); border-color: var(--faint); }
+
+.cal-details { margin-top: 26px; }
+.cal-details summary {
+  cursor: pointer; font-weight: 600; color: var(--orange-700);
+  padding: 10px 0; list-style-position: inside;
+}
+.pill-warn {
+  margin-left: 8px; font-size: .68rem; font-weight: 700; border-radius: 999px;
+  padding: 2px 8px; background: #FEF3C7; color: #92400E;
+}
+
+/* ---------------------------------------------------------------- cards -- */
+.grid { display: grid; grid-gap: 22px; gap: 22px; }
+.grid.cat { grid-template-columns: repeat(auto-fit, minmax(178px, 1fr)); }
+/* 248, not 272: four across at 1280 with room to breathe, and each card is a card
+   rather than a poster. */
+.grid.svc { grid-template-columns: repeat(auto-fill, minmax(248px, 1fr)); }
+.grid.c2  { grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); }
+
+.cat-card {
+  display: block; background: var(--white); border: 1px solid var(--line);
+  border-radius: var(--radius-lg); padding: 26px 18px; text-align: center;
+  box-shadow: var(--shadow-sm); cursor: pointer; text-decoration: none; color: inherit;
+  transition: transform .18s ease-out, box-shadow .18s ease-out;
+}
+.cat-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); }
+.cat-card .tile {
+  width: 64px; height: 64px; border-radius: 16px; margin: 0 auto 16px;
+  display: grid; place-items: center; font-size: 30px;
+}
+.cat-card .name { font-weight: 700; font-size: 1.02rem; }
+.cat-card .desc { color: var(--muted); font-size: .88rem; margin-top: 4px; }
+
+.svc-card {
+  display: flex; flex-direction: column;
+  text-align: left; color: var(--ink); font-weight: 400;
+  background: var(--white); border: 1px solid var(--line);
+  border-radius: var(--radius-lg); overflow: hidden;
+  box-shadow: var(--shadow-sm); transition: transform .18s ease-out, box-shadow .18s ease-out;
+}
+.svc-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); }
+/*
+ * The header carries the tile now, so it does not also need to be a tinted band —
+ * two coloured surfaces stacked made the top half of every card heavier than the
+ * name and price underneath it, which are what the card is for.
+ */
+.svc-top {
+  background: none; border-bottom: 1px solid var(--line-soft);
+  padding: 18px 16px 14px; text-align: center; position: relative;
+}
+
+/*
+ * A tile, not a bare glyph.
+ *
+ * This was `font-size: 38px` on a block `div` with no box, so the moment a
+ * category tint was passed as `background` it painted the full width of the card
+ * header — a solid colour band with an emoji floating on it. On the phone rail a
+ * separate rule gave it a box, which is why it looked right there and wrong
+ * everywhere else. One definition, sized once, matching `.cat-card .tile` above it.
+ */
+.svc-top .emoji {
+  width: 54px; height: 54px; margin: 0 auto; border-radius: 15px;
+  display: grid; place-items: center; font-size: 25px; line-height: 1;
+  background: linear-gradient(135deg, #FDBA74, #EA580C);
+  /* A hairline lift, so a flat gradient reads as an object rather than a swatch. */
+  box-shadow: 0 1px 2px rgba(15,23,42,.14), inset 0 1px 0 rgba(255,255,255,.32);
+}
+.svc-top.cool .emoji { background: linear-gradient(135deg, #93C5FD, #2563EB); }
+.svc-top .rating { margin-top: 10px; font-size: .84rem; font-weight: 600; }
+.svc-top .rating .rev { color: var(--muted); font-weight: 400; }
+.badge {
+  position: absolute; top: 14px; border-radius: 999px; padding: 5px 12px;
+  font-size: .74rem; font-weight: 700; background: var(--white);
+}
+.badge.r { right: 14px; }
+.badge.l { left: 14px; }
+.badge.pop { color: var(--orange-600); }
+.badge.new { background: var(--green-100); color: var(--green); }
+.badge.blue { background: var(--blue-100); color: var(--blue); }
+.badge.prem { background: #FCE7F3; color: #DB2777; }
+
+.svc-body { padding: 14px 16px 16px; display: flex; flex-direction: column; flex: 1 1; }
+.chips { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 12px; }
+.chip {
+  border-radius: 999px; padding: 5px 12px; font-size: .78rem; font-weight: 600;
+  background: var(--orange-100); color: var(--orange-700);
+}
+.chip.blue { background: var(--blue-100); color: var(--blue); }
+.chip.off { background: var(--green-100); color: var(--green); }
+.svc-body .title {
+  display: block; font-weight: 700; font-size: 1rem; letter-spacing: -.01em;
+  color: var(--ink);
+}
+.svc-body a.title:hover { color: var(--orange-600); }
+.svc-card:hover .svc-body .title { color: var(--orange-600); }
+.svc-body .desc {
+  color: var(--muted); font-size: .92rem; margin: 8px 0 12px; line-height: 1.5;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.feats { list-style: none; padding: 0; margin: 0 0 12px; }
+.feats li { font-size: .89rem; color: var(--ink-2); padding: 2px 0; }
+.feats li::before { content: '✓'; color: var(--orange-600); font-weight: 700; margin-right: 8px; }
+.feats.blue li::before { color: var(--blue); }
+.meta { display: flex; gap: 16px; color: var(--muted); font-size: .86rem; margin-bottom: 14px; }
+.price { font-size: 1.2rem; font-weight: 800; letter-spacing: -.02em; margin-top: auto; }
+/* Card actions are small by default. They inherited the page's primary button —
+   11px/20px, sized for a form's submit — so two of them side by side were taller
+   than the price they sat under. */
+.svc-actions { display: flex; gap: 8px; margin-top: 12px; }
+.svc-actions .btn { padding: 8px 12px; font-size: .85rem; }
+.svc-actions button { flex: 1 1; }
+
+/* --------------------------------------------------------------- action -- */
+/* --------------------------------------------------------------- action --
+   The CTA look is OPT-IN via .btn, and <button> is only reset.
+
+   Styling the bare `button` element as a primary CTA was the root of a whole
+   family of bugs: every card-shaped control in the app is a <button>, so the
+   global was fighting each of them - forcing white text on white cards, bolding
+   card body copy, and (once inline-flex was added so links could be buttons)
+   collapsing stacked card content into a centred row. A shared element selector
+   cannot serve both "orange pill" and "clickable card". */
+button {
+  font: inherit; color: inherit; cursor: pointer;
+  background: none; border: 0; padding: 0; margin: 0;
+  text-align: inherit; -webkit-appearance: none; -moz-appearance: none; appearance: none;
+}
+button:disabled { cursor: not-allowed; }
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  font-weight: 700; text-align: center; text-decoration: none;
+  border-radius: var(--radius-sm); padding: 11px 20px;
+  border: 1px solid var(--orange-600);
+  background: var(--orange-600); color: #fff;
+  transition: background .16s ease-out, border-color .16s ease-out;
+}
+.btn:hover:not(:disabled) { background: var(--orange-700); border-color: var(--orange-700); color: #fff; }
+.btn:disabled { opacity: .45; }
+
+.btn.outline { background: var(--white); color: var(--ink); border-color: var(--line); font-weight: 600; }
+.btn.outline:hover:not(:disabled) { background: var(--line-soft); border-color: var(--faint); color: var(--ink); }
+.btn.blue { background: var(--blue); border-color: var(--blue); color: #fff; }
+.btn.blue:hover:not(:disabled) { background: #1D4ED8; border-color: #1D4ED8; }
+.btn.ghost { background: transparent; color: var(--orange-600); border-color: transparent; }
+.btn.ghost:hover:not(:disabled) { background: var(--orange-50); color: var(--orange-700); }
+.btn.sm { padding: 7px 14px; font-size: .86rem; }
+.btn.block, .btn-block { width: 100%; }
+.btn-block {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  font-weight: 700; border-radius: var(--radius-sm); padding: 14px 20px; font-size: 1rem;
+  border: 1px solid var(--orange-600); background: var(--orange-600); color: #fff;
+}
+.btn-block:hover:not(:disabled) { background: var(--orange-700); border-color: var(--orange-700); }
+.btn-block:disabled { opacity: .45; }
+.btn-block.outline { background: var(--white); color: var(--ink); border-color: var(--line); }
+.btn-block.outline:hover:not(:disabled) { background: var(--line-soft); }
+
+.btn.pillghost {
+  background: var(--orange-50); color: var(--orange-600);
+  border: 1px solid var(--orange-100); border-radius: 999px; padding: 13px 26px;
+}
+.btn.pillghost:hover { background: var(--orange-100); color: var(--orange-700); }
+
+/* Inline text button - "Resend OTP", "Change number". */
+.btn-link {
+  color: var(--orange-600); font-weight: 700; background: none; border: 0; padding: 0;
+}
+.btn-link:hover { color: var(--orange-700); text-decoration: underline; }
+
+input, select {
+  font: inherit; padding: 11px 13px; background: var(--white); color: var(--ink);
+  border: 1px solid var(--line); border-radius: var(--radius-sm);
+}
+input:focus, select:focus { outline: 2px solid var(--orange); outline-offset: 1px; }
+
+/* Keyboard focus. Nothing in the app had a visible focus ring, which makes the whole
+   product unusable without a mouse - and is the kind of gap that never shows up in a
+   click-through review. Pointer users are unaffected. */
+:focus-visible {
+  outline: 2px solid var(--orange-600);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+.btn:focus-visible, .btn-block:focus-visible, .slot:focus-visible,
+.daychip:focus-visible, .opt:focus-visible, .pick:focus-visible,
+.svc-card:focus-visible, .cat-card:focus-visible, .city-pill:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 3px;
+}
+label { display: block; font-size: .74rem; font-weight: 700; letter-spacing: .08em;
+        text-transform: uppercase; color: var(--muted); margin-bottom: 7px; }
+
+/* --------------------------------------------------------------- offers -- */
+/* ------------------------------------------------------------ membership --
+   Compact on the page; the whole plan lives in a dialog.
+
+   The previous version printed four benefits, six priced rituals and a three-line
+   calculation between the catalogue and the footer — for the overwhelming majority
+   of visitors who came to book a puja and have no interest in a subscription. What
+   stays here is what someone needs to decide whether to look further. */
+.plan {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-gap: 24px 32px; gap: 24px 32px;
+  align-items: center;
+  background: linear-gradient(120deg, #7C3AED 0%, #C026D3 60%, #E11D48 100%);
+  color: #fff; border-radius: var(--radius-xl); padding: 26px 30px;
+}
+.plan > * { min-width: 0; }
+/* The pitch half. Named so the grid's two children are legible in the markup
+   rather than being 'the first div'. */
+.plan-main { display: block; }
+.plan-kicker {
+  display: inline-block; font-size: .66rem; font-weight: 800; letter-spacing: .13em;
+  text-transform: uppercase; opacity: .85; margin-bottom: 8px;
+}
+.plan h2 { color: #fff; font-size: clamp(1.3rem, 2.2vw, 1.7rem); margin: 0; }
+.plan-hook {
+  margin: 8px 0 0; color: rgba(255,255,255,.92); font-size: .98rem; max-width: 52ch;
+}
+.plan-more {
+  all: unset; box-sizing: border-box; cursor: pointer;
+  display: inline-block; margin-top: 14px;
+  font-weight: 700; font-size: .92rem; color: #fff;
+  border-bottom: 1px solid rgba(255,255,255,.5); padding-bottom: 1px;
+}
+.plan-more:hover { border-bottom-color: #fff; }
+.plan-more:focus-visible { outline: 2px solid #fff; outline-offset: 4px; border-radius: 4px; }
+
+/* The price side is a light panel: a figure on a gradient is hard to read, and
+   this is the part someone checks rather than skims. */
+.plan-buy {
+  display: flex; flex-direction: column; align-items: stretch; gap: 2px;
+  background: rgba(255,255,255,.97); color: var(--ink);
+  border-radius: var(--radius-lg); padding: 18px 20px; min-width: 210px;
+}
+.pb-amt { font-size: 1.9rem; font-weight: 800; letter-spacing: -.02em; line-height: 1; }
+.pb-per { font-size: .86rem; color: var(--muted); }
+.pb-ends {
+  align-self: flex-start; margin-top: 8px; font-size: .72rem; font-weight: 700;
+  background: var(--orange-100); color: var(--orange-700);
+  border-radius: 999px; padding: 3px 10px;
+}
+.plan-buy .btn { margin-top: 12px; }
+
+/* --- inside the dialog --- */
+.plan-sub { margin: 0 0 4px; font-size: .93rem; }
+.plan-h {
+  font-size: .74rem; font-weight: 800; letter-spacing: .09em; text-transform: uppercase;
+  color: var(--muted); margin: 20px 0 10px;
+}
+.plan-list { list-style: none; margin: 0; padding: 0; }
+.plan-list li {
+  position: relative; padding-left: 26px; margin-bottom: 9px;
+  font-size: .93rem; color: var(--ink-2);
+}
+.plan-list li::before {
+  content: '\2713'; position: absolute; left: 0; top: 0;
+  color: var(--green); font-weight: 800;
+}
+.plan-incl { list-style: none; margin: 0; padding: 0; }
+.plan-incl li {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 12px;
+  padding: 8px 0; font-size: .92rem; border-bottom: 1px solid var(--line-soft);
+}
+.plan-incl a { color: var(--ink); font-weight: 600; }
+.plan-incl a:hover { color: var(--orange-700); }
+.pi-price { color: var(--muted); font-feature-settings: "tnum"; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+.plan-math { margin: 16px 0 0; }
+.plan-math > div {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 14px;
+  padding: 6px 0; font-size: .92rem;
+}
+.plan-math dt { color: var(--muted); }
+.plan-math dd { margin: 0; font-feature-settings: "tnum"; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.plan-math .strike { text-decoration: line-through; color: var(--faint); }
+.plan-math .net {
+  border-top: 1px dashed var(--line); margin-top: 6px; padding-top: 11px;
+  font-weight: 800; font-size: 1rem;
+}
+.plan-math .net dt { color: var(--ink); }
+.plan-math .net.good dd { color: var(--green); }
+
+.plan-foot {
+  margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--line);
+  display: flex; align-items: center; gap: 18px; flex-wrap: wrap;
+}
+.plan-terms { font-size: .8rem; margin: 0; max-width: 46ch; line-height: 1.5; }
+
+/* ----------------------------------------------------------------- misc -- */
+.notice { border-radius: var(--radius); padding: 13px 16px; font-size: .95rem; margin: 14px 0; }
+.notice.err { background: #FEF2F2; border: 1px solid #FECACA; color: #B91C1C; }
+.notice.ok { background: var(--green-50); border: 1px solid #BBF7D0; color: #15803D; }
+.notice.quiet { background: var(--line-soft); border: 1px solid var(--line); color: var(--ink-2); }
+/* Not an error: the thing worked, but not the way the reader would assume — a
+   substituted almanac, a fallback, a value that came from somewhere else. */
+.notice.warn { background: #FFFBEB; border: 1px solid #FDE68A; color: #92400E; }
+
+.card { background: var(--white); border: 1px solid var(--line); border-radius: var(--radius-lg); padding: 22px; box-shadow: var(--shadow-sm); }
+.card.quiet { background: var(--line-soft); border-color: transparent; box-shadow: none; }
+.row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.spread { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.sub { color: var(--muted); margin: 8px 0 26px; }
+.stat { font-size: 1.9rem; font-weight: 800; color: var(--orange-600); }
+
+.tag {
+  display: inline-block; font-size: .78rem; font-weight: 600; padding: 4px 11px;
+  border-radius: 999px; background: var(--line-soft); color: var(--ink-2);
+}
+.tag.auspicious { background: var(--green-100); color: var(--green); }
+.tag.avoid { background: #FFE4E6; color: #BE123C; }
+.tag.new { background: var(--blue-100); color: var(--blue); }
+
+/* Tables must scroll inside their own box rather than stretch the page. */
+.table-wrap { width: 100%; max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+table { width: 100%; border-collapse: collapse; font-size: .92rem; }
+td, th { overflow-wrap: anywhere; }
+th { text-align: left; font-size: .72rem; font-weight: 700; letter-spacing: .07em;
+     text-transform: uppercase; color: var(--muted); padding: 11px 13px; border-bottom: 1px solid var(--line); }
+td { padding: 12px 13px; border-bottom: 1px solid var(--line-soft); }
+tbody tr:hover { background: var(--line-soft); }
+
+.pick {
+  display: block; width: 100%; font-weight: 400;
+  text-align: left; cursor: pointer; background: #fff; color: var(--ink);
+  border: 1px solid var(--line); border-radius: var(--radius-lg); padding: 18px;
+  box-shadow: var(--shadow-sm); font-weight: 400;
+}
+.pick:hover { border-color: var(--orange); box-shadow: var(--shadow-md); }
+.pick.on { border-color: var(--orange-600); box-shadow: 0 0 0 2px rgba(249,115,22,.18); }
+.pick .bn { font-size: 1.08rem; font-weight: 700; }
+.pick .en { color: var(--muted); font-size: .89rem; margin-top: 3px; }
+.pick .price { margin-top: 12px; font-size: 1.15rem; }
+
+.slotgrid { display: grid; grid-template-columns: repeat(4, 1fr); grid-gap: 10px; gap: 10px; }
+.slot { display: block; width: 100%; padding: 14px 8px; font-size: .88rem;
+        font-weight: 600; text-align: center;
+        border: 1px solid var(--line); border-radius: var(--radius); background: #fff;
+        color: var(--ink); cursor: pointer; }
+.slot:hover:not(:disabled) { border-color: var(--orange); }
+.slot:disabled { background: var(--line-soft); color: var(--faint); cursor: not-allowed; }
+.slot.on { background: var(--orange-600); border-color: var(--orange-600); color: #fff; }
+.slot .mark { display: block; font-size: .72rem; font-weight: 600; margin-top: 4px; }
+.slot .mark.auspicious { color: var(--green); }
+.slot .mark.avoid { color: #BE123C; }
+.slot.on .mark { color: rgba(255,255,255,.9); }
+
+.bill { font-size: .98rem; }
+.bill .line { display: flex; justify-content: space-between; gap: 16px; padding: 8px 0; }
+.bill .line span:last-child { font-feature-settings: "tnum"; font-variant-numeric: tabular-nums; }
+.bill .line.total { border-top: 2px solid var(--ink); margin-top: 8px; padding-top: 12px; font-weight: 800; font-size: 1.1rem; }
+.bill .line.now { color: var(--orange-600); font-weight: 700; }
+.bill .note { color: var(--muted); font-size: .88rem; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); }
+
+.panjika { background: var(--cream); border: 1px solid #FBE8C8; border-radius: var(--radius-lg); padding: 16px 18px; }
+.panjika .cols { display: flex; gap: 28px; flex-wrap: wrap; align-items: baseline; }
+.panjika .col .k { font-size: .7rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); display: block; }
+.panjika .col .v { font-size: 1rem; font-weight: 600; }
+
+/*
+ * A 60px circle pinned to the bottom-right of the viewport, over a page whose rails
+ * run full-bleed to that same edge — so it landed on a card's "Book Now" and on the
+ * second of the two closing cards. A floating action that covers another action is
+ * not an affordance, it is an obstacle, and on a phone it is the one you hit by
+ * accident with the hand you are holding the device in.
+ *
+ * Smaller on a phone, lifted clear of the sticky booking bar, and inside the safe
+ * area so it does not sit under the home indicator.
+ */
+.wa {
+  position: fixed; right: 20px; z-index: 50;
+  bottom: calc(30px + env(safe-area-inset-bottom));
+  width: 56px; height: 56px; border-radius: 50%; background: #25D366;
+  display: grid; place-items: center; box-shadow: var(--shadow-lg);
+  border: 0; padding: 0;
+}
+.wa:hover { background: #1EBE5B; }
+.wa-label {
+  position: fixed; right: 24px; bottom: 6px; z-index: 50;
+  background: var(--white); border-radius: 6px; padding: 2px 8px;
+  font-size: .74rem; color: var(--muted); box-shadow: var(--shadow-sm);
+}
+
+.seeall { color: var(--orange-600); font-weight: 700; font-size: .96rem; }
+
+footer.site {
+  background: #0F172A; color: #CBD5E1; margin-top: 72px; padding: 0 0 26px;
+}
+footer.site a { color: #CBD5E1; }
+footer.site a:hover { color: #fff; }
+
+/* Help block. First thing in the footer because it is the reason people scroll here. */
+.fhelp {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 24px; flex-wrap: wrap;
+  padding: 30px 0; border-bottom: 1px solid #1E293B;
+}
+.fhelp h3 { color: #fff; font-size: 1.25rem; margin: 0 0 4px; }
+.fhelp p { margin: 0; font-size: .93rem; color: #94A3B8; max-width: 48ch; }
+.fhelp-actions { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+.wa-btn {
+  display: inline-flex; align-items: center; gap: 9px;
+  background: #25D366; border-color: #25D366; color: #06281A;
+}
+.wa-btn:hover { background: #1FBE5A; color: #06281A; }
+.fphone { font-weight: 700; font-size: 1.05rem; color: #fff !important; white-space: nowrap; }
+
+/* Specifics, not badge spam. Each line is either true of us or it is not. */
+.ftrust {
+  list-style: none; margin: 0; padding: 22px 0;
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); grid-gap: 12px 26px; gap: 12px 26px;
+  border-bottom: 1px solid #1E293B; font-size: .9rem;
+}
+.ftrust li { display: flex; gap: 10px; align-items: baseline; }
+.ftrust span { color: var(--orange); font-weight: 800; flex: 0 0 auto; }
+
+.fcols {
+  display: grid; grid-template-columns: minmax(0, 1.6fr) repeat(3, minmax(0, 1fr));
+  grid-gap: 34px;
+  gap: 34px; padding: 30px 0;
+}
+.fbrand p { color: #94A3B8; font-size: .9rem; max-width: 34ch; margin: 14px 0 0; }
+.fcol h4 { margin: 0 0 12px; }
+.fcol h4 button {
+  all: unset; box-sizing: border-box; cursor: pointer;
+  display: flex; align-items: center; justify-content: space-between; width: 100%;
+  color: #fff; font-size: .95rem; font-weight: 700;
+}
+.fcol h4 svg { display: none; }
+.fcol ul { list-style: none; margin: 0; padding: 0; }
+.fcol li { margin-bottom: 9px; font-size: .91rem; }
+
+.fcities {
+  display: flex; gap: 14px; align-items: baseline; flex-wrap: wrap;
+  padding: 22px 0; border-top: 1px solid #1E293B;
+}
+.fcities .lbl {
+  font-size: .74rem; text-transform: uppercase; letter-spacing: .07em;
+  color: var(--faint); font-weight: 700; flex: 0 0 auto;
+}
+.fcities .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.fchip {
+  background: #1E293B; border: 1px solid transparent; color: #CBD5E1;
+  border-radius: 999px; padding: 7px 14px; font-size: .85rem; font-weight: 600;
+  cursor: pointer;
+}
+.fchip:hover { background: #263449; color: #fff; }
+.fchip.on { background: var(--orange-600); color: #fff; }
+
+footer.site .bottom {
+  border-top: 1px solid #1E293B; padding-top: 20px; font-size: .86rem;
+  color: var(--faint); display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
+}
+footer.site .bottom .dot { color: #334155; }
+
+/*
+ * Footer, three widths.
+ *
+ * Between 720 and 900 the grid collapsed to two equal columns with the brand
+ * block occupying one of them, so the three link columns fought over the other
+ * and wrapped into unreadable stacks. The brand is not a column — it is a
+ * masthead — so it now spans, and the links get the full width beneath it.
+ */
+@media (max-width: 1000px) {
+  .fcols { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 26px; }
+  .fbrand { grid-column: 1 / -1; padding-bottom: 6px; border-bottom: 1px solid #1E293B; }
+  .fbrand p { max-width: 60ch; }
+}
+@media (max-width: 860px) {
+  /* The help block stops being a row: a headline squeezed beside a button is
+     narrower than the sentence it is trying to say. */
+  .fhelp { flex-direction: column; align-items: flex-start; gap: 16px; }
+  .fhelp-actions { width: 100%; gap: 12px; }
+  .ftrust { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 20px; }
+}
+
+/*
+ * Under 720px the columns become accordions. Five open columns is a screen and a
+ * half of links nobody reads, and it pushes the legal strip — which people DO look
+ * for — off the end of a long scroll.
+ */
+@media (max-width: 720px) {
+  .fcols { grid-template-columns: 1fr; gap: 0; padding: 12px 0 0; }
+  .fbrand { padding-bottom: 22px; border-bottom: 0; }
+  .fcol { border-top: 1px solid #1E293B; }
+  .fcol h4 { margin: 0; }
+  .fcol h4 button { padding: 16px 0; }        /* 52px tap target */
+  .fcol h4 svg { display: block; transition: transform 160ms ease; }
+  .fcol.open h4 svg { transform: rotate(180deg); }
+  .fcol-body { display: none; padding-bottom: 14px; }
+  .fcol.open .fcol-body { display: block; }
+  .fcol li { margin-bottom: 14px; }           /* thumb-spaced, not mouse-spaced */
+
+  .fhelp { padding: 24px 0; }
+  .fhelp h3 { font-size: 1.1rem; }
+  .wa-btn { flex: 1 1; justify-content: center; }
+  .fphone {
+    /* A phone number is the one footer element that IS the action on a phone. */
+    flex: 1 1; text-align: center; padding: 12px;
+    border: 1px solid #1E293B; border-radius: var(--radius); font-size: .98rem;
+  }
+
+  /* One claim per line: two columns of wrapped trust copy is harder to read than
+     four short lines, and the icons stop aligning once any line wraps. */
+  .ftrust { grid-template-columns: 1fr; gap: 11px; padding: 18px 0; font-size: .88rem; }
+
+  /*
+   * Cities scroll instead of wrapping. Fourteen chips wrap to four rows on a
+   * 360px screen — a third of the footer's height spent on a list whose only job
+   * is to answer "do you serve me?", which the marked current city answers on its
+   * own. Full-bleed so the row reads as scrollable rather than clipped.
+   *
+   * `scroll-padding-inline` is the part that is easy to leave out and impossible to
+   * un-see afterwards. A snapport defaults to the scrollport's padding box, so with
+   * it unset the browser lines the first chip's edge up with the element edge —
+   * which is 20px LEFT of where the padding put it. `proximity` then snaps there on
+   * load all by itself, and the row settles one gutter to the left of the "We serve"
+   * label above it, with the mask eating the first city's name. Setting it moves the
+   * snapport in to meet the padding, so resting at scrollLeft 0 is the snap position.
+   */
+  .fcities { flex-direction: column; align-items: stretch; gap: 10px; padding: 18px 0; }
+  .fcities .chips {
+    flex-wrap: nowrap; overflow-x: auto; max-width: 100%;
+    scroll-snap-type: x proximity; scroll-padding-inline: var(--gutter);
+    margin-inline: calc(var(--gutter) * -1); padding-inline: var(--gutter);
+    padding-bottom: 4px;
+    /* Same affordance as every other scroller on the site. Without it this was the
+       one row that ended in a chip cut through the middle of a city's name. */
+    -webkit-mask-image: linear-gradient(to right, transparent 0, #000 20px, #000 calc(100% - 26px), transparent 100%);
+    mask-image: linear-gradient(to right, transparent 0, #000 20px, #000 calc(100% - 26px), transparent 100%);
+  }
+  .fchip { flex: 0 0 auto; scroll-snap-align: start; }
+
+  footer.site .bottom { gap: 8px; row-gap: 4px; }
+}
+
+/*
+ * The sticky booking bar is fixed over the bottom of the viewport below 980px, so
+ * it sat on top of the legal strip — the one part of a footer people are actually
+ * looking for when they scroll this far.
+ */
+@media (max-width: 980px) {
+  footer.site { padding-bottom: calc(84px + env(safe-area-inset-bottom)); }
+}
+@media (prefers-reduced-motion: reduce) { .fcol h4 svg { transition: none; } }
+/* --------------------------------------------------------- mobile nav -- */
+/* Below the breakpoint the header links used to be display:none with nothing in
+   their place, so a phone user had no way to reach Panchang or the pandit app. */
+.menu-btn { display: none; }
+.mobile-menu {
+  display: none; border-top: 1px solid var(--line); background: var(--white);
+  padding: 8px 20px 16px;
+}
+.mobile-menu a {
+  display: block; padding: 13px 4px; color: var(--ink); font-weight: 600;
+  border-bottom: 1px solid var(--line-soft);
+}
+.mobile-menu a:last-child { border-bottom: 0; }
+
+/* Sticky action bar so the primary CTA is always reachable on a phone. */
+.mobile-cta {
+  display: none; position: fixed; left: 0; right: 0; bottom: 0; z-index: 45;
+  background: var(--white); border-top: 1px solid var(--line);
+  padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+  box-shadow: 0 -4px 18px rgba(15,23,42,.08);
+  align-items: center; gap: 14px;
+}
+.mobile-cta .amt { font-weight: 800; font-size: 1.05rem; white-space: nowrap; }
+.mobile-cta .amt small { display: block; font-weight: 500; font-size: .74rem; color: var(--muted); }
+.mobile-cta .btn-block { flex: 1 1; padding: 12px; }
+
+@media (max-width: 900px) {
+  /* One column: the panchang follows the search rather than competing with it. */
+  .hero-grid { grid-template-columns: minmax(0, 1fr); }
+  .hero h1, .hero .lede { max-width: none; }
+  .searchwrap { max-width: none; }
+}
+@media (max-width: 860px) {
+  .nav .links { display: none; }
+  .menu-btn { display: grid; }
+  .mobile-menu.open { display: block; }
+}
+@media (max-width: 980px) {
+  .mobile-cta.show { display: flex; }
+  .book-layout { padding-bottom: 88px; }
+}
+@media (max-width: 640px) {
+  .section { padding: 44px 0; }
+  .section.tight { padding: 0 0 32px; }
+  .section.tight:first-of-type { padding-top: 28px; }
+  .hero { padding: 28px 0 26px; }
+  .hero h1 { font-size: 1.72rem; max-width: 16ch; }
+  .hero .lede { font-size: .98rem; margin-top: 10px; }
+  .searchwrap { margin-top: 18px; max-width: none; }
+  .pcard-hero { padding: 14px 16px; }
+  .ph-list a { padding: 5px 8px; }
+  /*
+    The search bar stays one row on a phone.
+    Stacking it made a 150px control out of a 50px one, on the screen with the
+    least room to spare. The label collapses to the icon instead — a magnifier
+    beside a text field is unambiguous, and the input keeps its aria-label.
+  */
+  .searchbar { padding: 5px 5px 5px 14px; }
+  .searchbar button { padding: 10px 16px; font-size: 0; }
+  .searchbar button::after { content: '🔍'; font-size: 1rem; }
+  .rail-head { margin: 24px 0 16px; gap: 10px; }
+  .daychip { min-width: 118px; padding: 13px 11px 12px; }
+
+  /*
+    Rails become a two-column grid, exactly like the category tiles.
+
+    They were snap carousels: two cards at 46% with a third sliced at the edge, a
+    fade, and a "Swipe for more" hint. That is three affordances teaching a gesture
+    to reach content the page could simply show. The category grid directly above
+    used `repeat(auto-fit, minmax(178px, 1fr))`, landed on two columns that fill the
+    width exactly, and needed none of it — no hidden content, no gesture, no
+    horizontal scroll competing with the page's vertical one.
+
+    Matching it also removes the entire class of bug the carousel kept producing:
+    equal-height stretch across a flex row, cards sliced mid-button, a scroller
+    that had to be masked so its clipped edge did not read as broken.
+  */
+  .grid.svc.rail {
+    display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-gap: 12px; gap: 12px;
+    /* Explicitly NOT a scroller any more. */
+    overflow: visible; margin-inline: 0; padding-inline: 0;
+  }
+  .grid.svc.rail > * { flex: initial; }
+  /* Nothing is off-screen, so nothing needs a fade or an instruction. */
+
+  /*
+    The card, at roughly 165px wide.
+
+    Everything removed here is on the detail page, one tap away through the title:
+    the rating, the chips, the feature ticks and the meta row. What is left is the
+    tile, the name, one line, the price and one action — the same parts, in the
+    same order, as the category tile it now sits beside.
+  */
+  .rail .svc-card { text-align: center; }
+  .rail .svc-top { background: none; padding: 18px 10px 0; }
+  .rail .svc-top.cool { background: none; }
+  .rail .svc-top .emoji { width: 48px; height: 48px; font-size: 22px; border-radius: 14px; }
+  .rail .svc-top .rating, .rail .chips, .rail .badge,
+  .rail .feats, .rail .meta { display: none; }
+
+  .rail .svc-body { padding: 14px 12px 16px; align-items: center; }
+  .rail .svc-body .title {
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+    overflow: hidden; font-size: .95rem; line-height: 1.3;
+  }
+  /*
+    Two lines reserved, so the price and button line up across the row. Card
+    heights are equal by construction here — grid rows stretch — and reserving the
+    description is what stops the alignment depending on how long the copy is.
+  */
+  .rail .svc-body .desc {
+    font-size: .8rem; margin: 6px 0 0; -webkit-line-clamp: 2;
+    min-height: calc(.8rem * 1.5 * 2);
+  }
+  .rail .price { font-size: 1rem; margin-top: 12px; color: var(--orange-600); }
+  /*
+    Exactly ONE `margin-top: auto` in this column. CSS divides free space equally
+    between every auto margin in a flex line, so the earlier pair (one on `.price`
+    from the base rule, one added here) split the slack and anchored nothing —
+    which is why a gap under "Book Now" survived a fix aimed at it.
+  */
+  .rail .svc-actions { flex-direction: column; gap: 0; margin-top: auto; padding-top: 12px; width: 100%; }
+  .rail .svc-actions .btn.outline { display: none; }
+  .rail .svc-actions .btn {
+    padding: 9px 8px; font-size: .82rem; width: 100%;
+    background: var(--orange-50); color: var(--orange-700);
+    border: 1px solid var(--orange-100); box-shadow: none;
+  }
+  .rail .svc-card:hover .svc-actions .btn,
+  .rail .svc-actions .btn:focus-visible {
+    background: var(--orange-600); color: #fff; border-color: var(--orange-600);
+  }
+
+  /* The two closing cards use the same grid, for the same reasons. */
+  .outband {
+    display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-gap: 12px; gap: 12px;
+    overflow: visible; margin-inline: 0; padding-inline: 0;
+  }
+  .outband > * { flex: initial; }
+  .outcard { padding: 18px 12px; }
+  .outcard .tile { width: 48px; height: 48px; font-size: 22px; margin-bottom: 12px; }
+  .outcard .name { font-size: .92rem; line-height: 1.3; }
+  .outcard .desc { font-size: .8rem; min-height: calc(.8rem * 1.5 * 3); }
+  .outcard .go { font-size: .8rem; margin-top: auto; padding-top: 10px; }
+
+  /* Membership: the price panel drops below the pitch rather than beside it. */
+  .plan { grid-template-columns: minmax(0, 1fr); gap: 18px; padding: 20px; }
+  .plan-buy { min-width: 0; padding: 16px; }
+  .pb-amt { font-size: 1.6rem; }
+  .plan-foot { flex-direction: column; align-items: stretch; gap: 12px; }
+  .plan-foot .btn { width: 100%; text-align: center; }
+  .plan-terms { font-size: .78rem; max-width: none; }
+
+  /* Calendar: five columns of text do not fit, so the cells lose their prose. */
+  .cal-head, .cal-grid { gap: 4px; }
+  .cal-cell { min-height: 58px; padding: 6px 5px; }
+  .cal-cell.empty { min-height: 58px; }
+  .c-tithi, .c-era { display: none; }
+  .c-num { font-size: .88rem; }
+  .cal-dow { font-size: .6rem; }      
+  .hub-group-head .btn { margin-left: 0; width: 100%; text-align: center; }
+  .slotgrid { grid-template-columns: repeat(2, 1fr) !important; }
+  .stepper .lb { display: none; }
+  .stepper .bar { margin: 0 8px; }
+  .wa {
+    right: 14px; width: 50px; height: 50px;
+    /* Above the sticky booking bar, which is 84px tall including its safe area. */
+    bottom: calc(96px + env(safe-area-inset-bottom));
+  }
+  .wa-label { display: none; }
+}
+
+/* ------------------------------------------------------- a11y utilities -- */
+/* Present to a screen reader, absent to everyone else. Not `display: none`,
+   which removes it from the accessibility tree along with everything else. */
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+
+/* --------------------------------------------- panchang: empty and loading --
+   The card used to return null when a city had no almanac, which is how the
+   panchang vanished in twelve cities without anyone noticing. It now holds its
+   place and says which of the two things happened. */
+.pcard-hero.quiet { display: flex; flex-direction: column; gap: 10px; }
+.pcard-hero.quiet .muted { font-size: .9rem; margin: 0; }
+.ph-skel {
+  height: 12px; margin: 0; border-radius: 6px;
+  background: linear-gradient(90deg, #F1E7D2 25%, #FAF3E4 50%, #F1E7D2 75%);
+  background-size: 200% 100%; animation: shimmer 1.4s ease-in-out infinite;
+}
+.ph-skel.short { width: 60%; }
+@keyframes shimmer { to { background-position: -200% 0; } }
+@media (prefers-reduced-motion: reduce) { .ph-skel { animation: none; } }
+
+/* ------------------------------------------------- panchang: day detail --
+   Every calendar cell used to be a link into /book, so tapping a date to READ
+   it threw you into a checkout. Looking up a tithi is the commonest reason to
+   open this page and it is not a booking intent. */
+.cal-cell { cursor: pointer; text-align: left; font: inherit; }
+.cal-cell.open { border-color: var(--orange); box-shadow: 0 0 0 2px var(--orange-100); }
+.cal-detail {
+  margin-top: 22px; padding: 22px 24px;
+  background: var(--white); border: 1px solid var(--line);
+  border-radius: var(--radius-lg); box-shadow: var(--shadow-sm);
+}
+/*
+ * `align-items: flex-start`, not the default `stretch`.
+ *
+ * The auspicious pill is `display: inline-block`, which a flex container ignores —
+ * it became a block-level flex item and stretched to the full height of the heading
+ * beside it, so a one-line label sat inside an 80px green oval. `inline-block` on a
+ * flex child is a no-op, and the fix belongs on the container.
+ */
+.cd-head {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  gap: 16px; flex-wrap: wrap;
+}
+.cd-when {
+  font-size: .74rem; font-weight: 800; letter-spacing: .09em; text-transform: uppercase;
+  color: var(--orange-700);
+}
+.cd-head h3 { font-size: 1.3rem; margin: 4px 0 2px; }
+.cd-head p { margin: 0; font-size: .92rem; }
+.cd-times {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  grid-gap: 12px;
+  gap: 12px; margin: 20px 0; padding: 0;
+}
+.cd-times > div {
+  padding: 11px 14px; border-radius: var(--radius);
+  background: var(--line-soft); border: 1px solid transparent;
+}
+.cd-times > div.good { background: var(--green-50); border-color: var(--green-100); }
+.cd-times > div.bad { background: #FFF1F2; border-color: #FECDD3; }
+.cd-times dt {
+  font-size: .72rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--muted);
+}
+.cd-times > div.good dt { color: #15803D; }
+.cd-times > div.bad dt { color: #BE123C; }
+.cd-times dd {
+  margin: 3px 0 0; font-weight: 700; font-feature-settings: "tnum"; font-variant-numeric: tabular-nums; font-size: 1rem;
+}
+
+/* ------------------------------------------------- narrow-screen repairs --
+   Each of these is a control that fits at desktop width and silently squashes
+   below it. A tab bar that shrinks its labels to four characters and a filter
+   row that wraps to three lines are both technically "responsive". */
+@media (max-width: 720px) {
+  /* Was scoped to `.account .tabs` only, so the admin console's four tabs
+     compressed into unreadable stubs on the one device staff use in the field. */
+  .tabs { overflow-x: auto; scroll-snap-type: x proximity; max-width: 100%; }
+  .tabs button { flex: 0 0 auto; white-space: nowrap; scroll-snap-align: start; }
+
+  /* Seven category chips wrap to three rows above the catalogue, pushing the
+     first service card off the screen on the step where you choose one. */
+  .catbar {
+    flex-wrap: nowrap; overflow-x: auto; max-width: 100%;
+    margin-inline: calc(var(--gutter) * -1); padding-inline: var(--gutter);
+    padding-bottom: 6px;
+    scroll-snap-type: x proximity; scroll-padding-inline: var(--gutter);
+  }
+  .catchip { flex: 0 0 auto; scroll-snap-align: start; }
+
+  .cal-detail { padding: 18px; }
+  .cd-times { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .cd-times > div { padding: 9px 11px; }
+  .cd-times dd { font-size: .92rem; }
+  .cal-detail .btn { display: block; text-align: center; }
+
+  /*
+    The services hub, rebuilt for a narrow screen.
+
+    It was laid out as a desktop directory: a 46px icon beside a heading beside a
+    button, and rows whose name, description, delivery mode and price were four
+    columns that became four stacked lines with no visual grouping. At 360px the
+    "Book from this group" button ended up alone on its own line under a heading
+    that had already wrapped, and every row was six lines of grey text.
+  */
+  .hub-head { padding: 24px 0 6px; }
+  .hub-head .lede { font-size: .96rem; }
+  .hub-jump {
+    flex-wrap: nowrap; overflow-x: auto; max-width: 100%;
+    margin-inline: calc(var(--gutter) * -1); padding-inline: var(--gutter);
+    padding-bottom: 6px;
+    scroll-snap-type: x proximity; scroll-padding-inline: var(--gutter); gap: 8px;
+  }
+  .jump-pill { flex: 0 0 auto; scroll-snap-align: start; font-size: .84rem; padding: 7px 13px; }
+
+  .hub-group { padding: 22px 0 4px; }
+  .hub-group-head { gap: 12px; padding-bottom: 12px; }
+  .hub-group-head h2 { font-size: 1.15rem; }
+  .hub-group-head p { font-size: .86rem; }
+  .hub-tile { width: 38px; height: 38px; flex: 0 0 38px; font-size: 19px; border-radius: 11px; }
+  /* The group button follows the list, not the heading: it is what you do after
+     reading the group, and putting it above the group inverts that. */
+  .hub-group-head .btn { order: 3; }
+
+  /* Two cards across on a phone: the same shelf shape the home page now uses,
+     so the two pages read as one product. */
+  .hub-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .hub-card { padding: 13px 12px 11px; }
+  .hc-top { flex-direction: column; align-items: flex-start; gap: 5px; }
+  .hc-name { font-size: .92rem; }
+  .hc-desc { font-size: .8rem; min-height: calc(.8rem * 1.5 * 2); }
+  .hc-foot { flex-direction: column; align-items: flex-start; gap: 2px; margin-top: 10px; }
+  .hub-foot { margin: 30px 0 40px; padding: 24px 20px; }
+
+  .pooja-head .facts { gap: 10px 16px; font-size: .86rem; }
+}
+
+@media (max-width: 480px) {
+  /* Four labelled segments in 340px gives each about 78 characters' worth of
+     space for a two-word label. The bars still show position; the labels do not
+     survive, so they go rather than truncate into nonsense. */
+  .wiz-rail .lb { display: none; }
+  .wiz { padding-inline: 16px; }
+  .stepper .bar { margin: 0 6px; }
+  .cd-times { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* ----------------------------------------------------------------- auth -- */
+.auth-split {
+  display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+  min-height: calc(100vh - 68px);
+}
+.auth-split > * { min-width: 0; }
+.auth-aside {
+  background: linear-gradient(150deg, #7C2D12 0%, #C2410C 45%, #EA580C 100%);
+  color: #fff; padding: 64px 56px; display: flex; flex-direction: column; justify-content: center;
+}
+.auth-aside h2 { color: #fff; font-size: 2.3rem; max-width: 14ch; }
+.auth-aside .lede { color: rgba(255,255,255,.88); font-size: 1.06rem; margin-top: 16px; max-width: 40ch; }
+.auth-aside ul { list-style: none; padding: 0; margin: 36px 0 0; }
+.auth-aside li { display: flex; gap: 14px; align-items: flex-start; margin-bottom: 20px; }
+.auth-aside li .ic {
+  width: 38px; height: 38px; border-radius: 11px; flex: 0 0 38px;
+  background: rgba(255,255,255,.18); display: grid; place-items: center; font-size: 18px;
+}
+.auth-aside li b { display: block; font-size: .98rem; }
+.auth-aside li span { color: rgba(255,255,255,.82); font-size: .9rem; }
+
+.auth-main { display: flex; align-items: center; justify-content: center; padding: 56px 28px; }
+.auth-card { width: 100%; max-width: 420px; }
+.auth-card h1 { font-size: 1.85rem; }
+.auth-card .sub { margin: 8px 0 26px; }
+
+.tabs { display: flex; background: var(--line-soft); border-radius: 10px; padding: 4px; margin-bottom: 26px; }
+.tabs button {
+  flex: 1 1; background: transparent; border: 0; color: var(--muted);
+  padding: 10px; border-radius: 8px; font-weight: 600; font-size: .94rem;
+  text-align: center;
+}
+.tabs button.on { background: #fff; color: var(--ink); box-shadow: var(--shadow-sm); }
+.tabs button:hover:not(.on) { background: transparent; color: var(--ink-2); }
+
+.field { margin-bottom: 16px; }
+.field label { text-transform: none; letter-spacing: 0; font-size: .88rem; font-weight: 600; color: var(--ink-2); }
+.field input { width: 100%; padding: 13px 14px; font-size: 1rem; }
+.field .hint { font-size: .82rem; color: var(--muted); margin-top: 6px; }
+.field .err { font-size: .82rem; color: #B91C1C; margin-top: 6px; }
+.field.with-prefix { position: relative; }
+.field.with-prefix .prefix {
+  position: absolute; left: 14px; top: 38px; color: var(--muted); font-weight: 600;
+  pointer-events: none;
+}
+.field.with-prefix input { padding-left: 52px; }
+
+.otp-boxes { display: flex; gap: 10px; }
+.otp-boxes input {
+  width: 100%; text-align: center; font-size: 1.4rem; font-weight: 700;
+  padding: 12px 0; font-feature-settings: "tnum"; font-variant-numeric: tabular-nums;
+}
+.btn-block { width: 100%; padding: 14px; font-size: 1rem; }
+.auth-alt { text-align: center; margin-top: 20px; font-size: .93rem; color: var(--muted); }
+.auth-alt button { background: none; border: 0; color: var(--orange-600); font-weight: 700; padding: 0; }
+.auth-legal { font-size: .8rem; color: var(--faint); text-align: center; margin-top: 26px; line-height: 1.6; }
+.demo-note {
+  background: var(--orange-50); border: 1px dashed var(--orange-100); color: var(--orange-700);
+  border-radius: 10px; padding: 11px 14px; font-size: .84rem; margin-top: 22px;
+}
+
+@media (max-width: 900px) { .auth-split { grid-template-columns: 1fr; } .auth-aside { display: none; } }
+
+/* -------------------------------------------------------------- booking -- */
+.stepper { display: flex; align-items: center; gap: 0; margin-bottom: 34px; }
+/* `.st` is a <button> so a finished step can be revisited. It must not inherit the
+   orange CTA styling that `.btn` carries. */
+.stepper .st {
+  display: flex; align-items: center; gap: 10px;
+  background: transparent; border: 0; padding: 0; font: inherit;
+}
+.stepper .st:disabled { cursor: default; }
+.stepper .st.done { cursor: pointer; }
+.stepper .st.done:hover .lb { color: var(--orange-700); }
+.stepper .st:focus-visible { outline: 2px solid var(--orange-600); outline-offset: 3px; border-radius: 6px; }
+.stepper .dot {
+  width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center;
+  font-size: .84rem; font-weight: 700; background: var(--line-soft); color: var(--muted);
+  border: 1px solid var(--line);
+}
+.stepper .st.on .dot { background: var(--orange-600); border-color: var(--orange-600); color: #fff; }
+.stepper .st.done .dot { background: var(--green); border-color: var(--green); color: #fff; }
+.stepper .lb { font-size: .9rem; font-weight: 600; color: var(--muted); }
+.stepper .st.on .lb, .stepper .st.done .lb { color: var(--ink); }
+.stepper .bar { flex: 1 1; height: 2px; background: var(--line); margin: 0 14px; min-width: 20px; }
+.stepper .st.done + .bar { background: var(--green); }
+
+.book-layout {
+  display: grid; grid-template-columns: minmax(0, 1fr) 360px;
+  grid-gap: 32px;
+  gap: 32px; align-items: start;
+}
+/* Every grid/flex child defaults to min-width:auto and refuses to shrink below its
+   content. This is the single most common cause of a page wider than the screen. */
+.book-layout > * { min-width: 0; }
+.summary { position: -webkit-sticky; position: sticky; top: 90px; min-width: 0; }
+.summary .head { font-weight: 700; font-size: 1.05rem; margin-bottom: 14px; }
+.summary .lineitem { display: flex; justify-content: space-between; gap: 12px; padding: 9px 0; font-size: .93rem; }
+.summary .lineitem .k { color: var(--muted); }
+.summary .empty { color: var(--muted); font-size: .93rem; }
+
+.daystrip {
+  display: flex; gap: 10px; padding-bottom: 6px;
+  overflow-x: auto; overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity; -webkit-overflow-scrolling: touch;
+  /* Belt and braces: even if an ancestor forgets min-width:0, this cannot widen it. */
+  max-width: 100%;
+}
+.daystrip::-webkit-scrollbar { height: 6px; }
+.daystrip::-webkit-scrollbar-thumb { background: var(--line); border-radius: 3px; }
+.daychip {
+  display: block; scroll-snap-align: start;
+  min-width: 78px; border: 1px solid var(--line);
+  border-radius: var(--radius); background: #fff; color: var(--ink); font-weight: 400;
+  padding: 11px 6px; text-align: center; cursor: pointer; flex: 0 0 auto;
+}
+.daychip:hover { border-color: var(--orange); }
+.daychip.on { background: var(--orange-600); border-color: var(--orange-600); color: #fff; }
+.daychip .dow { font-size: .74rem; font-weight: 600; opacity: .7; }
+.daychip .d { font-size: 1.2rem; font-weight: 800; line-height: 1.3; }
+.daychip .mo { font-size: .74rem; opacity: .8; }
+.daychip .aus { font-size: .66rem; font-weight: 700; color: var(--green); margin-top: 2px; }
+.daychip.on .aus { color: #FDE68A; }
+
+.opt-row { display: flex; gap: 12px; flex-wrap: wrap; }
+.opt {
+  display: block; flex: 1 1 220px;
+  border: 1px solid var(--line); border-radius: var(--radius); background: #fff;
+  padding: 14px 18px; cursor: pointer; text-align: left; font-weight: 600; color: var(--ink);
+}
+.opt:hover { border-color: var(--orange); }
+.opt.on { border-color: var(--orange-600); box-shadow: 0 0 0 2px rgba(249,115,22,.16); }
+.opt .s { display: block; font-weight: 400; font-size: .85rem; color: var(--muted); margin-top: 3px; }
+
+@media (max-width: 980px) { .book-layout { grid-template-columns: 1fr; } .summary { position: static; } }
+
+/* ------------------------------------------------------------ skeletons -- */
+/* Shown while the catalogue loads so the page has shape immediately rather than
+   flashing empty. */
+@keyframes sk-pulse { 0%,100% { opacity: 1 } 50% { opacity: .55 } }
+.skeleton-card { pointer-events: none; }
+.sk { background: var(--line-soft); border-radius: 6px; animation: sk-pulse 1.4s ease-in-out infinite; }
+.sk-emoji { width: 44px; height: 44px; border-radius: 12px; margin: 0 auto; }
+.sk-line { height: 12px; margin-bottom: 10px; }
+
+/* ----------------------------------------------------------- categories -- */
+.cat-card .count {
+  margin-top: 10px; font-size: .8rem; font-weight: 700; color: var(--orange-600);
+}
+.catbar {
+  display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 22px;
+}
+.catchip {
+  display: inline-flex; align-items: center; gap: 7px;
+  border: 1px solid var(--line); background: #fff; color: var(--ink-2);
+  border-radius: 999px; padding: 8px 14px; font-size: .88rem; font-weight: 600;
+  cursor: pointer;
+}
+.catchip:hover { border-color: var(--orange); color: var(--ink); }
+.catchip.on { background: var(--orange-600); border-color: var(--orange-600); color: #fff; }
+.catchip .n {
+  font-size: .75rem; font-weight: 700; background: var(--line-soft);
+  color: var(--muted); border-radius: 99px; padding: 1px 7px;
+}
+.catchip.on .n { background: rgba(255,255,255,.24); color: #fff; }
+
+/* ----------------------------------------------------- booking substeps -- */
+
+/* Date, time and pandit were three unlabelled blocks stacked down the page. Numbering
+   them and stating what each unlocks is the difference between a form and a flow. */
+.stephead { font-size: 1.15rem; margin: 0; }
+.steplabel {
+  display: block; font-size: .72rem; font-weight: 800; letter-spacing: .07em;
+  text-transform: uppercase; color: var(--orange-700); margin-bottom: 4px;
+}
+.card.chosen { border-color: var(--orange-100); background: var(--orange-50); }
+
+.substep { margin-bottom: 26px; }
+.substep-head { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 12px; }
+.substep-head h3 { margin: 0; font-size: 1.02rem; }
+.substep-head .hint { margin: 3px 0 0; font-size: .87rem; color: var(--muted); max-width: 56ch; }
+.substep-head .ix {
+  flex: 0 0 24px; width: 24px; height: 24px; border-radius: 50%;
+  display: grid; place-items: center; margin-top: 1px;
+  background: var(--ink); color: #fff; font-size: .76rem; font-weight: 800;
+}
+.substep-head .btn, .substep-head .scroll-hint { margin-left: auto; flex: 0 0 auto; }
+.scroll-hint { font-size: .82rem; align-self: center; }
+
+/* The one line that tells the user what to do next. */
+.nextcue {
+  margin: 12px 0 0; font-size: .88rem; font-weight: 600; color: var(--orange-700);
+  background: var(--orange-50); border: 1px dashed var(--orange-100);
+  border-radius: var(--radius); padding: 10px 14px;
+}
+
+.searching {
+  display: flex; align-items: center; gap: 10px;
+  margin: 0 0 14px; font-size: .92rem; font-weight: 600; color: var(--ink-2);
+}
+.spin {
+  width: 15px; height: 15px; border-radius: 50%; flex: 0 0 auto;
+  border: 2px solid var(--line); border-top-color: var(--orange-600);
+  animation: spin 700ms linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .spin { animation-duration: 2.4s; }
+}
+
+@media (max-width: 620px) {
+  .scroll-hint { display: none; }
+  .substep-head { flex-wrap: wrap; }
+}
+
+/* A button that behaves like a link inside prose. */
+.linkish {
+  background: none; border: 0; padding: 0; font: inherit; cursor: pointer;
+  color: var(--orange-700); font-weight: 700; text-decoration: underline;
+}
+
+/* --------------------------------------------------------------- address -- */
+
+.addr-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 18px; }
+.addr {
+  display: block; width: 100%; text-align: left; cursor: pointer;
+  border: 1px solid var(--line); border-radius: var(--radius); background: #fff;
+  padding: 13px 16px; color: var(--ink);
+}
+.addr:hover { border-color: var(--orange); }
+.addr.on { border-color: var(--orange-600); box-shadow: 0 0 0 2px rgba(249,115,22,.16); }
+.addr .lb { display: block; font-weight: 700; font-size: .95rem; }
+.addr .ln { display: block; color: var(--muted); font-size: .87rem; margin-top: 2px; }
+.addr.add { border-style: dashed; color: var(--orange-700); font-weight: 700; text-align: center; }
+
+.addr-form {
+  border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 18px; background: var(--line-soft); margin-bottom: 22px;
+}
+.addr-form .field:last-of-type { margin-bottom: 12px; }
+
+/* ------------------------------------------------------- service detail -- */
+
+.pooja { padding: 26px 20px 90px; }
+.crumbs { display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+  font-size: .86rem; color: var(--muted); margin-bottom: 22px; }
+.crumbs a { color: var(--muted); }
+.crumbs a:hover { color: var(--orange-700); }
+
+.pooja-grid { display: grid; grid-template-columns: minmax(0, 1fr) 340px; grid-gap: 40px; gap: 40px;
+  align-items: start; }
+.pooja-grid > * { min-width: 0; }
+
+.pooja-head h1 { font-size: 2.1rem; margin: 12px 0 0; }
+.pooja-head .sub { margin: 8px 0 16px; font-size: 1.02rem; }
+.pooja-head .facts { display: flex; flex-wrap: wrap; gap: 18px; font-size: .92rem;
+  color: var(--ink-2); padding-bottom: 22px; border-bottom: 1px solid var(--line); }
+
+.pooja-sec { padding: 26px 0; border-bottom: 1px solid var(--line-soft); }
+.pooja-sec h2 { font-size: 1.25rem; margin: 0 0 12px; }
+.pooja-sec > .muted { margin-top: 0; margin-bottom: 16px; max-width: 62ch; font-size: .92rem; }
+
+.ticks, .numbered { margin: 0; padding-left: 0; list-style: none; }
+.ticks li { position: relative; padding-left: 30px; margin-bottom: 10px; }
+.ticks li::before { content: '✓'; position: absolute; left: 0; top: 0;
+  color: var(--green); font-weight: 800; }
+.numbered { counter-reset: n; }
+.numbered li { counter-increment: n; position: relative; padding-left: 34px; margin-bottom: 12px; }
+.numbered li::before {
+  content: counter(n); position: absolute; left: 0; top: 1px;
+  width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--orange-100); color: var(--orange-700); font-size: .76rem; font-weight: 800;
+}
+
+.pooja-sec details { border-bottom: 1px solid var(--line-soft); padding: 12px 0; }
+.pooja-sec details:last-child { border-bottom: 0; }
+.pooja-sec summary { cursor: pointer; font-weight: 600; }
+.pooja-sec summary::marker { color: var(--orange-600); }
+.pooja-sec details p { margin: 10px 0 0; color: var(--muted); font-size: .93rem; max-width: 62ch; }
+
+.pooja-buy { position: -webkit-sticky; position: sticky; top: 90px; }
+.pooja-buy .big { font-size: 2rem; font-weight: 800; line-height: 1.1; margin: 2px 0 4px; }
+.citylinks { display: flex; flex-wrap: wrap; gap: 6px 12px; margin-top: 8px; color: var(--muted); }
+
+@media (max-width: 980px) {
+  .pooja-grid { grid-template-columns: 1fr; gap: 26px; }
+  .pooja-buy { position: static; }
+  .pooja-head h1 { font-size: 1.7rem; }
+}
+
+/* ------------------------------------------------------- account & menu -- */
+
+.avatar {
+  display: grid; place-items: center; border-radius: 999px; flex: 0 0 auto;
+  background: var(--orange-100); color: var(--orange-700);
+  font-weight: 800; width: 56px; height: 56px; font-size: 1.4rem;
+}
+.avatar.sm { width: 30px; height: 30px; font-size: .92rem; }
+
+/* The header badge sits on the icon, so the icon has to be the containing block. */
+.nav .icon-btn { position: relative; }
+.nav .icon-btn .badge {
+  position: absolute; top: 4px; right: 4px; min-width: 18px; height: 18px;
+  padding: 0 5px; border-radius: 999px; background: var(--orange-600); color: #fff;
+  font-size: .68rem; font-weight: 800; line-height: 18px; text-align: center;
+}
+
+.acct { position: relative; }
+.acct-menu {
+  position: absolute; right: 0; top: calc(100% + 8px); z-index: 60;
+  min-width: 228px; background: #fff; border: 1px solid var(--line);
+  border-radius: var(--radius); box-shadow: var(--shadow-lg, 0 12px 32px rgba(15,23,42,.14));
+  padding: 6px; display: flex; flex-direction: column;
+}
+.acct-who { padding: 10px 12px 12px; border-bottom: 1px solid var(--line-soft); margin-bottom: 6px; }
+.acct-who .nm { display: block; font-weight: 700; }
+.acct-who .rl { display: block; font-size: .82rem; color: var(--muted); }
+.acct-menu a, .acct-menu button {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 10px 12px; border-radius: 8px; font-size: .93rem; font-weight: 600;
+  color: var(--ink-2); background: transparent; border: 0; cursor: pointer;
+  text-align: left; width: 100%;
+}
+.acct-menu a:hover, .acct-menu button:hover { background: var(--line-soft); color: var(--ink); }
+.acct-menu .danger { color: #B91C1C; }
+.acct-menu .n {
+  font-size: .72rem; font-weight: 800; background: var(--orange-100);
+  color: var(--orange-700); border-radius: 999px; padding: 2px 8px;
+}
+
+.account { padding: 34px 20px 80px; }
+.acct-head { display: flex; align-items: center; gap: 16px; margin-bottom: 26px; }
+.acct-head h1 { font-size: 1.6rem; margin: 0; }
+.acct-head .sub { margin: 2px 0 0; font-size: .92rem; }
+.acct-head .btn { margin-left: auto; }
+
+.account .tabs { max-width: 560px; }
+.account .tabs button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; }
+.account .tabs .n {
+  font-size: .7rem; font-weight: 800; background: var(--orange-600); color: #fff;
+  border-radius: 999px; padding: 1px 7px;
+}
+.account .sec { font-size: .82rem; text-transform: uppercase; letter-spacing: .06em;
+  color: var(--muted); margin: 26px 0 10px; }
+.account .sec:first-child { margin-top: 0; }
+
+.bk-list { display: flex; flex-direction: column; gap: 10px; }
+.bk {
+  display: grid; grid-template-columns: 92px minmax(0, 1fr) auto; grid-gap: 16px; gap: 16px;
+  align-items: center; background: #fff; border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 14px 18px;
+}
+.bk-when { display: flex; flex-direction: column; }
+.bk-when .d { font-weight: 700; }
+.bk-when .t { font-size: .8rem; color: var(--muted); }
+.bk-main { min-width: 0; }
+.bk-title { font-weight: 700; overflow-wrap: anywhere; }
+.bk-meta { font-size: .85rem; color: var(--muted); overflow-wrap: anywhere; }
+.bk-end { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+.bk-amt { font-weight: 700; }
+.bk-clickable { cursor: pointer; }
+.bk-clickable:hover { border-color: var(--orange); box-shadow: var(--shadow-md); }
+.bk-clickable:focus-visible { outline: 2px solid var(--orange); outline-offset: 2px; }
+
+.bk-detail .bill { margin-top: 4px; }
+.tl { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.tl-row {
+  display: flex; justify-content: space-between; gap: 12px; padding: 8px 0;
+  border-bottom: 1px solid var(--line-soft); font-size: .92rem;
+}
+.tl-row:last-child { border-bottom: 0; }
+
+.stars-row { margin-top: 10px; }
+.stars-row:first-child { margin-top: 0; }
+.stars { display: flex; gap: 4px; margin-top: 4px; }
+.star {
+  background: none; border: none; cursor: pointer; font-size: 1.3rem;
+  line-height: 1; color: var(--line); padding: 2px;
+}
+.star.on { color: var(--orange); }
+.star:hover { color: var(--orange-600); }
+.tag.ok { background: var(--green-100); color: var(--green); }
+.tag.wait { background: var(--cream-2); color: #92400E; }
+.tag.done { background: var(--blue-100); color: var(--blue); }
+.tag.off { background: var(--line-soft); color: var(--muted); }
+
+.empty-state { text-align: center; padding: 44px 24px; }
+.empty-state .ico { font-size: 34px; }
+.empty-state h3 { margin: 12px 0 6px; }
+.empty-state p { max-width: 42ch; margin: 0 auto 18px; }
+
+.kv { display: flex; justify-content: space-between; gap: 16px; padding: 11px 0;
+  border-bottom: 1px solid var(--line-soft); font-size: .95rem; }
+.kv:last-of-type { border-bottom: 0; }
+.kv .k { color: var(--muted); }
+
+@media (max-width: 620px) {
+  .bk { grid-template-columns: minmax(0, 1fr) auto; }
+  .bk-when { grid-column: 1 / -1; flex-direction: row; gap: 8px; align-items: baseline; }
+  .account .tabs { overflow-x: auto; }
+  .account .tabs button { flex: 0 0 auto; white-space: nowrap; }
+}
+
+/* The purohit the platform assigned. Disclosure, not a choice. */
+.assigned {
+  display: flex; align-items: center; gap: 14px; margin-bottom: 14px;
+  border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px;
+}
+.assigned .who { font-weight: 700; font-size: 1.05rem; }
+.assigned .why { font-size: .86rem; color: var(--muted); }
+
+/* ------------------------------------------------------- purohit wizard -- */
+/*
+ * Sized for the stated persona: 30–65, low-end Android, often one-handed and
+ * sometimes outdoors. Bigger type, bigger targets, one decision per screen.
+ */
+.wiz { max-width: 640px; padding: 26px 20px 120px; }
+.wiz h1 { font-size: 1.7rem; margin: 0 0 6px; }
+.wiz .sub { font-size: 1rem; margin-bottom: 26px; }
+.wiz-q { font-size: 1.05rem; font-weight: 700; margin: 28px 0 12px; }
+/* One step is one screen's worth of decisions; nothing else competes with it. */
+.wiz-step { animation: wiz-in 180ms ease-out; }
+@keyframes wiz-in { from { opacity: 0; transform: translateY(4px); } }
+@media (prefers-reduced-motion: reduce) { .wiz-step { animation: none; } }
+
+.wiz-rail { display: flex; gap: 8px; margin-bottom: 28px; }
+.wiz-rail .seg { flex: 1 1; min-width: 0; }
+.wiz-rail .bar {
+  display: block; height: 5px; border-radius: 99px; background: var(--line);
+}
+.wiz-rail .seg.on .bar { background: var(--orange-600); }
+.wiz-rail .seg.done .bar { background: var(--green); }
+.wiz-rail .lb {
+  display: block; margin-top: 7px; font-size: .74rem; font-weight: 700;
+  color: var(--faint); text-transform: uppercase; letter-spacing: .05em;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.wiz-rail .seg.on .lb { color: var(--orange-700); }
+.wiz-rail .seg.done .lb { color: var(--ink-2); }
+
+/* 48px minimum: a thumb, not a mouse. */
+.pickgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(148px, 1fr)); grid-gap: 10px; gap: 10px; }
+.pickgrid.two { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
+.pickbox {
+  min-height: 52px; padding: 13px 16px; border-radius: var(--radius);
+  border: 1.5px solid var(--line); background: #fff; color: var(--ink);
+  font-size: 1rem; font-weight: 600; cursor: pointer; text-align: left;
+}
+.pickbox:hover { border-color: var(--orange); }
+.pickbox.on {
+  border-color: var(--orange-600); background: var(--orange-50);
+  box-shadow: inset 0 0 0 1px var(--orange-600);
+}
+.pickbox.wide { display: flex; flex-direction: column; gap: 3px; }
+.pickbox .t { font-weight: 700; }
+.pickbox .s { font-size: .84rem; font-weight: 400; color: var(--muted); }
+.pickbox.on .s { color: var(--orange-700); }
+
+.field.big input { font-size: 1.5rem; font-weight: 700; padding: 16px; height: auto; }
+
+.ratelist { display: flex; flex-direction: column; gap: 10px; }
+.rate {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px;
+}
+.rate .nm { font-weight: 700; }
+.rate .rg { font-size: .82rem; color: var(--muted); }
+.rate .amt { display: flex; align-items: center; gap: 4px; font-weight: 700; }
+.rate .amt input {
+  width: 110px; font-size: 1.1rem; font-weight: 700; text-align: right; padding: 10px 12px;
+}
+
+/* Always reachable with a thumb, never scrolled past. */
+.wiz-foot {
+  position: -webkit-sticky;
+  position: sticky; bottom: 0; display: flex; gap: 10px; align-items: center;
+  padding: 14px 0 18px; margin-top: 30px;
+  background: linear-gradient(180deg, transparent, var(--white) 28%);
+}
+.wiz-foot .btn.outline { flex: 0 0 auto; }
+.wiz-foot .btn-block { flex: 1 1; }
+
+.wiz-done { text-align: center; padding: 44px 26px; }
+.wiz-done .tick {
+  width: 58px; height: 58px; border-radius: 50%; margin: 0 auto 16px;
+  display: grid; place-items: center; font-size: 28px; font-weight: 800;
+  background: var(--green-100); color: var(--green);
+}
+
+/* ---------------------------------------------------------------- legal -- */
+.legal { max-width: 720px; padding: 40px 20px 90px; }
+.legal h1 { font-size: 2rem; }
+.legal .sub { font-size: 1.05rem; margin-bottom: 34px; }
+.legal section { padding: 26px 0; border-top: 1px solid var(--line-soft); }
+.legal h2 { font-size: 1.15rem; margin: 0 0 12px; }
+.legal p { max-width: 66ch; }
+.legal .ticks { margin-bottom: 16px; }
+.legal-table { margin: 6px 0 14px; }
+.legal-table th, .legal-table td {
+  text-align: left; padding: 11px 14px; border-bottom: 1px solid var(--line-soft);
+}
+.legal-table th { font-size: .78rem; text-transform: uppercase; letter-spacing: .05em;
+  color: var(--muted); }
+.contact-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  grid-gap: 14px;
+  gap: 14px; margin-bottom: 10px;
+}
+.contact-grid .card { display: flex; flex-direction: column; }
+.contact-grid .card p { flex: 1 1; font-size: .92rem; }
+.contact-grid .btn { align-self: flex-start; }
+
+/* A footer city is an action, not a label. */
+
+/* -------------------------------------------------------------- occasions -- */
+/*
+ * The front door. Bigger and calmer than the catalogue behind it: this is one
+ * question, and the answer should not feel like shopping.
+ */
+.occ { max-width: 760px; }
+.occ-q { font-size: 1.65rem; font-weight: 800; letter-spacing: -.02em; margin: 0 0 8px; }
+.occ-sub { color: var(--muted); margin: 0 0 26px; max-width: 52ch; }
+
+.occ-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); grid-gap: 12px; gap: 12px;
+}
+.occ-card {
+  display: flex; flex-direction: column; gap: 3px; text-align: left; cursor: pointer;
+  min-height: 104px; padding: 18px;
+  border: 1.5px solid var(--line); border-radius: var(--radius-lg); background: #fff;
+  color: var(--ink);
+}
+.occ-card:hover { border-color: var(--orange); box-shadow: var(--shadow-md); }
+.occ-card .ic { font-size: 22px; margin-bottom: 4px; }
+.occ-card .lb { font-weight: 700; font-size: 1rem; line-height: 1.3; }
+.occ-card .bl { font-size: .85rem; color: var(--muted); }
+
+.occ-back {
+  background: none; border: 0; padding: 0 0 14px; cursor: pointer;
+  color: var(--muted); font-weight: 600; font-size: .9rem;
+}
+.occ-back:hover { color: var(--orange-700); }
+
+/* Answers "do I need all of these?" — the question nobody in the category answers. */
+.occ-guide {
+  background: var(--cream); border: 1px solid var(--cream-2);
+  border-radius: var(--radius); padding: 16px 18px; margin: 14px 0 22px;
+  font-size: .94rem; color: var(--ink-2); max-width: 62ch;
+}
+
+.occ-rituals { display: flex; flex-direction: column; gap: 12px; }
+.occ-ritual {
+  text-align: left; cursor: pointer; background: #fff; color: var(--ink);
+  border: 1.5px solid var(--line); border-radius: var(--radius-lg); padding: 18px;
+}
+.occ-ritual:hover { border-color: var(--orange); box-shadow: var(--shadow-md); }
+.occ-ritual .top { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.occ-ritual .nm { font-weight: 700; font-size: 1.08rem; }
+.occ-ritual .wt {
+  font-size: .72rem; font-weight: 800; letter-spacing: .04em; text-transform: uppercase;
+  border-radius: 999px; padding: 3px 10px;
+}
+.occ-ritual .wt.core { background: var(--orange-100); color: var(--orange-700); }
+.occ-ritual .wt\.often-with, .occ-ritual .wt.often-with { background: var(--blue-100); color: var(--blue); }
+.occ-ritual .wt.optional { background: var(--line-soft); color: var(--muted); }
+.occ-ritual .does { color: var(--ink-2); font-size: .93rem; margin: 7px 0 0; max-width: 58ch; }
+.occ-ritual .meta { color: var(--muted); font-size: .85rem; margin-top: 9px; }
+
+.occ-skip {
+  display: block; width: 100%; margin-top: 22px; padding: 15px;
+  background: none; border: 1px dashed var(--line); border-radius: var(--radius);
+  color: var(--muted); font-weight: 600; font-size: .93rem; cursor: pointer;
+}
+.occ-skip:hover { border-color: var(--orange); color: var(--orange-700); }
+
+/* --------------------------------------------------------------- muhurat -- */
+/*
+ * The good days, given room. A date is the thing families agonise over, so it gets
+ * a card with its reasons rather than a 64px chip in a horizontal scroller.
+ */
+.muh-list { display: flex; flex-direction: column; gap: 10px; }
+.muh {
+  text-align: left; cursor: pointer; width: 100%;
+  border: 1.5px solid var(--line); border-radius: var(--radius-lg);
+  background: #fff; color: var(--ink); padding: 16px 18px;
+}
+.muh:hover { border-color: var(--orange); box-shadow: var(--shadow-md); }
+.muh.on { border-color: var(--orange-600); box-shadow: 0 0 0 2px rgba(249,115,22,.18); }
+.muh-when { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.muh-when .d { font-weight: 700; font-size: 1.05rem; }
+.muh-when .abh {
+  font-size: .74rem; font-weight: 800; letter-spacing: .03em; text-transform: uppercase;
+  background: var(--green-100); color: var(--green); border-radius: 999px; padding: 3px 10px;
+}
+.muh-why { list-style: none; margin: 8px 0 0; padding: 0; }
+.muh-why li {
+  font-size: .88rem; color: var(--ink-2); position: relative; padding-left: 15px;
+}
+.muh-why li::before {
+  content: '·'; position: absolute; left: 3px; color: var(--orange); font-weight: 800;
+}
+/* A caution shapes the choice; it never removes the option. */
+.muh-caution {
+  margin-top: 10px; font-size: .84rem; color: #92400E;
+  background: var(--cream-2); border-radius: var(--radius-sm); padding: 8px 11px;
+}
+
+/* The chanting sample. Not decoration — this is the trust signal. */
+.chant {
+  border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 14px 16px; margin-bottom: 14px; background: var(--cream);
+}
+.chant-head { font-size: .88rem; font-weight: 700; color: var(--ink-2); margin-bottom: 9px; }
+.chant audio { width: 100%; height: 38px; }
+
+/* ------------------------------------------------------- panchang by role --
+   One calendar, three questions. A devotee asks which days are auspicious, a
+   purohit asks which days they are working, an operator asks which days are about
+   to run out of supply. Same grid; the marks and the day panel differ. */
+.c-badge {
+  margin-top: auto; align-self: stretch; text-align: center;
+  font-size: .62rem; font-weight: 800; letter-spacing: .03em;
+  border-radius: 5px; padding: 2px 4px; line-height: 1.4;
+}
+.c-badge.ok { background: var(--green-100); color: #15803D; }
+.c-badge.warn { background: #FEF3C7; color: #92400E; }
+.c-badge.bad { background: #FFE4E6; color: #BE123C; }
+
+/* --- purohit: their own slots on the open day --- */
+.pd-slots {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  grid-gap: 10px;
+  gap: 10px; margin: 18px 0 4px;
+}
+.pd-slot {
+  all: unset; box-sizing: border-box; cursor: pointer;
+  display: flex; flex-direction: column; gap: 2px;
+  padding: 12px 14px; border-radius: var(--radius);
+  border: 1px solid var(--line); background: var(--white);
+  transition: border-color .15s ease-out, background .15s ease-out;
+}
+.pd-slot:hover:not(:disabled) { border-color: var(--orange); }
+.pd-slot:focus-visible { outline: 2px solid var(--orange-600); outline-offset: 2px; }
+.pd-slot:disabled { cursor: default; }
+.pd-slot.open { background: var(--green-50); border-color: var(--green-100); }
+.pd-slot.closed { background: var(--line-soft); }
+.pd-slot.booked { background: var(--orange-50); border-color: var(--orange-100); }
+.pd-slot.blocked { background: var(--line-soft); opacity: .7; }
+.pds-time { font-weight: 700; font-size: .92rem; }
+.pds-state { font-size: .8rem; color: var(--ink-2); }
+.pd-slot.open .pds-state { color: var(--green); font-weight: 600; }
+.pd-slot.booked .pds-state { color: var(--orange-700); font-weight: 600; }
+.pds-note { font-size: .74rem; }
+.pd-empty { margin: 16px 0 0; }
+
+/* --- admin: how thin supply is --- */
+.cov { margin: 16px 0 0; padding: 16px 18px; border-radius: var(--radius); border: 1px solid var(--line); }
+.cov-ok { background: var(--green-50); border-color: var(--green-100); }
+.cov-warn { background: #FFFBEB; border-color: #FDE68A; }
+.cov-bad { background: #FFF1F2; border-color: #FECDD3; }
+.cov-figs {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+  grid-gap: 12px;
+  gap: 12px; margin: 0;
+}
+.cov-figs dt {
+  font-size: .68rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--muted);
+}
+.cov-figs dd { margin: 2px 0 0; font-size: 1.2rem; font-weight: 800; font-feature-settings: "tnum"; font-variant-numeric: tabular-nums; }
+.cov-read { margin: 14px 0 0; font-size: .9rem; color: var(--ink-2); }
+
+@media (max-width: 640px) {
+  .pd-slots { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .pd-slot { padding: 10px 11px; }
+  .cov-figs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .cov-figs dd { font-size: 1.05rem; }
+}
+
+/* ------------------------------------------------------------- earnings --
+   `GET /v1/me/earnings` existed since the payout job was built and nothing
+   rendered it: a purohit could see the jobs they had done and had no way to find
+   out what they were owed for them. The breakdown matters more than the total —
+   on a cash job the purohit already holds the devotee's money and owes us the
+   commission, so gross and payable differ by an amount they never received. */
+.earn {
+  background: linear-gradient(140deg, var(--green-50), #F0FDFA);
+  border: 1px solid var(--green-100); border-radius: var(--radius-xl);
+  padding: 22px 24px; margin-bottom: 26px;
+}
+.earn-kicker {
+  font-size: .66rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase;
+  color: #15803D;
+}
+.earn-head h2 { font-size: 1.9rem; margin: 6px 0 0; letter-spacing: -.02em; }
+.earn-unit { font-size: .92rem; font-weight: 500; color: var(--muted); margin-left: 8px; }
+.earn-lines { margin: 20px 0 0; }
+.earn-lines > div {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 16px;
+  padding: 9px 0; border-bottom: 1px solid rgba(22,163,74,.14);
+}
+.earn-lines dt { display: flex; flex-direction: column; gap: 2px; font-size: .93rem; }
+.earn-lines dd {
+  margin: 0; font-weight: 700; font-feature-settings: "tnum"; font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.earn-note { font-size: .78rem; max-width: 46ch; line-height: 1.45; }
+.earn-lines .owed dd { color: #BE123C; }
+.earn-lines .net { border-bottom: 0; padding-top: 14px; font-size: 1.05rem; }
+.earn-lines .net dt { font-weight: 800; }
+.earn-lines .net dd { font-size: 1.2rem; font-weight: 800; }
+.earn-empty { margin: 14px 0 0; font-size: .92rem; }
+.earn-terms { font-size: .8rem; margin: 16px 0 0; line-height: 1.5; }
+
+/* ----------------------------------------------------------- incidents --
+   A re-match that succeeded is routine; one that failed is a devotee with no
+   purohit and a slot getting closer. The row says which. */
+.inc { list-style: none; margin: 0; padding: 0; }
+.inc-row {
+  display: grid; align-items: baseline; grid-gap: 4px 16px; gap: 4px 16px;
+  grid-template-columns: 130px minmax(0, 1fr) auto auto;
+  padding: 12px 14px; border-bottom: 1px solid var(--line);
+  border-left: 3px solid transparent;
+}
+.inc-row.bad { border-left-color: var(--rose); background: #FFF1F2; }
+.inc-kind { font-size: .72rem; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); }
+.inc-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.inc-who { font-weight: 600; }
+.inc-when, .inc-reason { font-size: .85rem; }
+.inc-reason { font-style: italic; }
+.inc-state { white-space: nowrap; }
+.inc-at { font-size: .82rem; white-space: nowrap; }
+
+/* ------------------------------------------------------- anniversaries --
+   Almost every ritual here is annual, and the product made a returning family
+   search the catalogue from scratch — treating the most predictable demand in the
+   business as a cold visit. */
+.anniv {
+  list-style: none; margin: 0; padding: 0;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); grid-gap: 12px; gap: 12px;
+}
+.anniv-card {
+  display: flex; align-items: center; gap: 14px; height: 100%; color: inherit;
+  background: var(--white); border: 1px solid var(--line);
+  border-radius: var(--radius-lg); padding: 14px 16px; box-shadow: var(--shadow-sm);
+  transition: border-color .18s ease-out, transform .18s ease-out;
+}
+.anniv-card:hover { border-color: var(--orange); transform: translateY(-2px); }
+.av-emoji {
+  flex: 0 0 44px; width: 44px; height: 44px; border-radius: 13px;
+  display: grid; place-items: center; font-size: 21px;
+  background: var(--orange-50); border: 1px solid var(--orange-100);
+}
+.av-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.av-name { font-weight: 700; font-size: .98rem; }
+.av-when { font-size: .82rem; }
+.av-due {
+  margin-left: auto; flex: 0 0 auto; font-size: .7rem; font-weight: 800;
+  background: var(--orange-600); color: #fff; border-radius: 999px; padding: 3px 10px;
+}
+
+@media (max-width: 640px) {
+  .earn { padding: 18px; }
+  .earn-head h2 { font-size: 1.5rem; }
+  .earn-lines > div { flex-direction: column; gap: 2px; }
+  .earn-lines dd { align-self: flex-end; }
+  .inc-row { grid-template-columns: minmax(0, 1fr) auto; gap: 4px 10px; }
+  .inc-kind { grid-column: 1 / -1; }
+  .inc-at { display: none; }
+  .anniv { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: reduce) { .anniv-card { transition: none; } }
+
+/* A slot the purohit has never declared either way. Not closed — undeclared, and
+   the difference matters: a purohit who has said nothing about the 20th has not
+   refused it, and rendering that as "closed" would be the product answering on
+   their behalf. */
+.pd-slot.unset { background: var(--white); border-style: dashed; }
+.pd-slot.unset .pds-state { color: var(--faint); }
+.pd-lead { grid-column: 1 / -1; margin: 0 0 2px; font-size: .86rem; }
+
+/* `pending_accept` waits on the devotee's payment, not on the purohit — who
+   accepted it the moment they published the slot. Saying which way the waiting
+   runs is the whole point of this line. */
+.job-wait {
+  margin: 10px 0 0; font-size: .88rem; line-height: 1.5;
+  padding: 10px 12px; border-radius: var(--radius);
+  background: var(--line-soft); border-left: 3px solid var(--faint);
+}
+
+/* ------------------------------------------------------- weekly pattern --
+   The shift-booking grid. Availability is stored per (date, slot) — right for
+   booking, wrong for declaring: "I work Tuesday and Thursday mornings" is one
+   sentence, and saying it per-date took 120 taps. */
+.wk {
+  background: var(--white); border: 1px solid var(--line);
+  border-radius: var(--radius-xl); padding: 22px 24px; margin-bottom: 22px;
+  box-shadow: var(--shadow-sm);
+}
+.wk-head {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: 20px; flex-wrap: wrap; margin-bottom: 18px;
+}
+.wk-head h2 { font-size: 1.2rem; margin: 0; }
+.wk-head p { margin: 6px 0 0; font-size: .9rem; max-width: 56ch; }
+
+.wk-grid {
+  display: grid;
+  grid-template-columns: 62px repeat(var(--slots, 4), minmax(0, 1fr));
+  grid-gap: 6px;
+  gap: 6px; align-items: stretch;
+}
+/* The empty top-left cell, and the row wrapper. `display: contents` lets each
+   row's children participate in the outer grid, so a row is a semantic grouping
+   without being a layout box — it carried that inline, where the dead-class check
+   could not see it and neither could anyone reading the stylesheet. */
+.wk-corner { display: block; }
+.wk-row { display: contents; }
+.wk-slot-head {
+  display: flex; flex-direction: column; align-items: center; gap: 1px;
+  font-size: .74rem; font-weight: 700; color: var(--ink-2); padding-bottom: 4px;
+}
+.wk-slot-head small { font-weight: 500; color: var(--muted); font-size: .68rem; }
+.wk-day {
+  display: flex; align-items: center; font-size: .82rem; font-weight: 700;
+  color: var(--ink-2);
+}
+.wk-cell {
+  all: unset; box-sizing: border-box; cursor: pointer;
+  display: grid; place-items: center; min-height: 40px;
+  border: 1px solid var(--line); border-radius: var(--radius-sm);
+  background: var(--white); color: transparent;
+  transition: background .12s ease-out, border-color .12s ease-out;
+}
+.wk-cell:hover { border-color: var(--orange); }
+.wk-cell:focus-visible { outline: 2px solid var(--orange-600); outline-offset: 2px; }
+.wk-cell.on {
+  background: var(--green-50); border-color: var(--green);
+  color: var(--green); font-weight: 800;
+}
+.wk-result { margin: 16px 0 0; font-size: .9rem; color: var(--ink-2); }
+
+@media (max-width: 640px) {
+  .wk { padding: 16px; }
+  .wk-grid { grid-template-columns: 44px repeat(var(--slots, 4), minmax(0, 1fr)); gap: 4px; }
+  /* The empty top-left cell, and the row wrapper. `display: contents` lets each
+   row's children participate in the outer grid, so a row is a semantic grouping
+   without being a layout box — it carried that inline, where the dead-class check
+   could not see it and neither could anyone reading the stylesheet. */
+.wk-corner { display: block; }
+.wk-row { display: contents; }
+.wk-slot-head { font-size: .64rem; }
+  .wk-slot-head small { display: none; }
+  .wk-cell { min-height: 44px; }   /* thumb-sized, not mouse-sized */
+  .wk-head .btn { width: 100%; text-align: center; }
+}
+@media (prefers-reduced-motion: reduce) { .wk-cell { transition: none; } }
+
+/* --------------------------------------------------------------- modal --
+   Done once. CityPicker hand-rolled one in inline styles with no Escape
+   handling, no focus management and nothing announcing it as a dialog. */
+.modal-back {
+  position: fixed; inset: 0; z-index: 60;
+  background: rgba(15, 23, 42, .45);
+  display: flex; align-items: flex-start; justify-content: center;
+  padding: 72px 20px 20px;
+  overflow-y: auto;
+}
+.modal-panel {
+  width: min(560px, 100%); max-height: 78vh; overflow-y: auto;
+  background: var(--white); border-radius: var(--radius-xl);
+  padding: 22px 24px; box-shadow: var(--shadow-lg);
+}
+.modal-panel:focus { outline: none; }
+.modal-head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 16px; margin-bottom: 14px;
+}
+.modal-head h3 { font-size: 1.2rem; margin: 0; }
+
+/* The auspicious count, as a way in rather than a dead number. */
+.cd-auspicious {
+  all: unset; box-sizing: border-box; cursor: pointer;
+  display: flex; flex-direction: column; align-items: flex-end; gap: 3px;
+}
+.cd-auspicious:focus-visible { outline: 2px solid var(--orange-600); outline-offset: 3px; border-radius: 8px; }
+.cd-aus-more { font-size: .78rem; font-weight: 700; color: var(--orange-600); }
+.cd-auspicious:hover .cd-aus-more { color: var(--orange-700); }
+
+.aus-list { list-style: none; margin: 14px 0 0; padding: 0; }
+.aus-list li { border-bottom: 1px solid var(--line-soft); }
+.aus-list li:last-child { border-bottom: 0; }
+.aus-list a, .aus-list > li > span {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 12px 10px; color: var(--ink); border-radius: var(--radius-sm);
+}
+.aus-list a:hover { background: var(--orange-50); color: var(--orange-700); }
+.aus-name { font-weight: 600; }
+.aus-go { color: var(--orange-600); font-weight: 800; }
+
+@media (max-width: 640px) {
+  .modal-back { padding: 20px 14px; align-items: flex-end; }
+  .modal-panel { max-height: 86vh; padding: 18px; }
+  .cd-auspicious { align-items: flex-start; }
+}
+
+/* The gate's holding state, on the four restricted routes only. Every public page
+   renders straight through — see components/role-gate.tsx. */
+.gate-wait { padding: 60px 20px; }
+
+/* ------------------------------------------------------- payout account -- */
+/* A purohit could not be paid at all until this existed: `linked_account_id` had
+   never been set by anything. The panel is quiet once done and unmissable until. */
+.payout-card { margin-bottom: 18px; }
+.payout-card.warn { border-color: var(--orange); background: var(--orange-50); }
+.payout-done { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+.payout-ref { font-weight: 700; font-size: 1rem; margin: 2px 0; }
+.payout-form .field { margin-bottom: 14px; }
+.field-err { color: #B91C1C; font-size: .85rem; margin: 6px 0 0; }
+
+/* ------------------------------------------------------------------- kyc -- */
+/* Nothing could create a KYC record before this existed, so an admin approved
+   purohits on the strength of a name. See modules/purohit/kyc.controller.ts. */
+.kyc-card { margin-bottom: 18px; }
+.kyc-docs { display: grid; grid-gap: 10px; gap: 10px; margin: 16px 0; }
+.kyc-doc {
+  display: flex; align-items: center; justify-content: space-between; gap: 14px;
+  padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px;
+}
+.kyc-doc.done { background: #FAFAF9; }
+.kyc-doc-say { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.kyc-doc-say .muted { font-size: .86rem; }
+.kyc-doc-act { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
+.kyc-note { font-size: .84rem; color: #B91C1C; }
+
+@media (max-width: 640px) {
+  .kyc-doc { flex-direction: column; align-items: stretch; }
+  .kyc-doc-act { justify-content: flex-end; }
+}
+
+/* The reviewer's list. Each link is a five-minute signed URL, minted per request. */
+.kyc-review { list-style: none; margin: 0 0 12px; padding: 0; display: grid; grid-gap: 6px; gap: 6px; }
+.kyc-review li { display: flex; align-items: center; gap: 8px; font-size: .88rem; }
+.kyc-review .kind { font-weight: 700; text-transform: capitalize; }
+

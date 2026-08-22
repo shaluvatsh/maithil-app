@@ -16,6 +16,16 @@ export type BookingTrigger =
   | 'complete_otp_verified'
   | 'cancel_devotee'
   | 'cancel_pandit'
+  /**
+   * The purohit changed; the booking did not move.
+   *
+   * Deliberately absent from the transition table: a substitution is an audit fact,
+   * not a state change. When a purohit drops out we hand the job to the next-best
+   * match and the devotee keeps their slot, their price and their state — so there
+   * is no `from`/`to` pair to declare, and `transition()` is not the right door.
+   * It exists in this union so the audit row can name it honestly.
+   */
+  | 'pandit_substituted'
   | 'review_window_closed';
 
 export interface Transition {

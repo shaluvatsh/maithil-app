@@ -17,7 +17,18 @@ export const RitualSummary = z.object({
   }),
   bomTotalPaise: z.number().int(),
   isMuhuratSensitive: z.boolean(),
+  category: z.string(),
 });
+
+export const CategoryCount = z.object({
+  id: z.string(),
+  en: z.string(),
+  blurb: z.string(),
+  emoji: z.string(),
+  tint: z.string(),
+  count: z.number().int(),
+});
+export type CategoryCount = z.infer<typeof CategoryCount>;
 
 export const BomItem = z.object({
   id: Ulid,
@@ -25,7 +36,7 @@ export const BomItem = z.object({
   qty: z.string(),           // "1.5" - decimal as string, never a float
   unit: z.string(),          // kg, g, piece, mala, tola
   grade: z.string().nullable(),
-  catalogPricePaise: z.number().int(),
+  linePricePaise: z.number().int(),
   perishable: z.boolean(),
 });
 
@@ -39,6 +50,7 @@ export const ListRitualsQuery = z.object({
   citySlug: z.string().default('kolkata'),
   locale: Locale.default('bn'),
   q: z.string().optional(),
+  category: z.string().optional(),
 });
 
 export type RitualSummary = z.infer<typeof RitualSummary>;

@@ -4,6 +4,7 @@ import {
   rituals, ritualTranslations, ritualCityPrices, boms, bomItems,
   bomItemTranslations, cities,
 } from '../../db/schema/index';
+import { RITUAL_CATEGORIES } from '@themaithil/region';
 import {
   DomainError, ErrorCode, type Locale,
   type RitualSummary, type RitualDetail,
@@ -19,19 +20,29 @@ export class CatalogService {
     return rows[0].id;
   }
 
+  /** Reverse lookup, so services holding a booking can resolve its region config. */
+  async citySlugById(cityId: string): Promise<string> {
+    const rows = await this.db.select({ slug: cities.slug }).from(cities)
+      .where(eq(cities.id, cityId)).limit(1);
+    if (!rows[0]) throw new DomainError(ErrorCode.NOT_FOUND, `unknown city id: ${cityId}`);
+    return rows[0].slug;
+  }
+
   /**
    * Localised ritual list with the BOM total precomputed.
    *
    * Bengali is the primary locale and is required at seed time; hi/en fall back to
    * it rather than showing an empty string. See ADR 0009.
    */
-  async listRituals(args: { citySlug: string; locale: Locale }): Promise<RitualSummary[]> {
+  async listRituals(args: {
+    citySlug: string; locale: Locale; category?: string | undefined;
+  }): Promise<RitualSummary[]> {
     const cityId = await this.cityIdBySlug(args.citySlug);
 
     const bomTotals = this.db.$with('bom_totals').as(
       this.db.select({
         ritualId: boms.ritualId,
-        total: sql<number>`COALESCE(SUM(${bomItems.catalogPricePaise} * ${bomItems.qty}), 0)::bigint`
+        total: sql<number>`COALESCE(SUM(${bomItems.linePricePaise}), 0)::bigint`
           .as('total'),
       })
       .from(boms)
@@ -47,6 +58,8 @@ export class CatalogService {
         durationMin: rituals.durationMin,
         defaultSlotSpan: rituals.defaultSlotSpan,
         isMuhuratSensitive: rituals.isMuhuratSensitive,
+        category: rituals.category,
+        deliveryMode: rituals.deliveryMode,
         name: sql<string>`COALESCE(${ritualTranslations.name}, fallback.name)`,
         shortDescription:
           sql<string>`COALESCE(${ritualTranslations.shortDescription}, fallback.short_description)`,
@@ -69,7 +82,9 @@ export class CatalogService {
         sql`fallback.ritual_id = ${rituals.id} AND fallback.locale = 'bn'`,
       )
       .leftJoin(bomTotals, eq(bomTotals.ritualId, rituals.id))
-      .where(eq(rituals.active, true))
+      .where(args.category
+        ? and(eq(rituals.active, true), eq(rituals.category, args.category))
+        : eq(rituals.active, true))
       .orderBy(rituals.sortOrder);
 
     return rows.map((r) => ({
@@ -80,6 +95,8 @@ export class CatalogService {
       durationMin: r.durationMin,
       defaultSlotSpan: r.defaultSlotSpan,
       isMuhuratSensitive: r.isMuhuratSensitive,
+      category: r.category,
+      deliveryMode: r.deliveryMode,
       priceBand: {
         minPaise: Number(r.bandMin),
         maxPaise: Number(r.bandMax),
@@ -87,6 +104,32 @@ export class CatalogService {
       },
       bomTotalPaise: Number(r.bomTotal),
     }));
+  }
+
+  /**
+   * Categories with live counts, so a tile never promises a section that turns out
+   * to be empty — and an empty category is visible to us rather than to a devotee.
+   */
+  async categories(citySlug: string) {
+    const cityId = await this.cityIdBySlug(citySlug);
+    const rows = await this.db
+      .select({ category: rituals.category, count: sql<number>`count(*)::int` })
+      .from(rituals)
+      .innerJoin(ritualCityPrices, and(
+        eq(ritualCityPrices.ritualId, rituals.id),
+        eq(ritualCityPrices.cityId, cityId),
+      ))
+      .where(eq(rituals.active, true))
+      .groupBy(rituals.category);
+
+    const counts = new Map(rows.map((r) => [r.category, Number(r.count)]));
+    return [...RITUAL_CATEGORIES]
+      .sort((a, b) => a.order - b.order)
+      .map((c) => ({
+        id: c.id, en: c.en, blurb: c.blurb, emoji: c.emoji, tint: c.tint,
+        count: counts.get(c.id) ?? 0,
+      }))
+      .filter((c) => c.count > 0);
   }
 
   async getRitual(args: {
@@ -112,7 +155,7 @@ export class CatalogService {
       qty: bomItems.qty,
       unit: bomItems.unit,
       grade: bomItems.grade,
-      catalogPricePaise: bomItems.catalogPricePaise,
+      linePricePaise: bomItems.linePricePaise,
       perishable: bomItems.perishable,
       name: sql<string>`COALESCE(${bomItemTranslations.name}, fb.name)`,
     })
@@ -134,7 +177,7 @@ export class CatalogService {
       qty: r.qty,
       unit: r.unit,
       grade: r.grade,
-      catalogPricePaise: Number(r.catalogPricePaise),
+      linePricePaise: Number(r.linePricePaise),
       perishable: r.perishable,
     }));
   }
@@ -142,7 +185,7 @@ export class CatalogService {
   /** Sum of BOM lines at catalogue rates. Feeds computePrice(). */
   async bomTotalPaise(ritualId: string): Promise<number> {
     const rows = await this.db.select({
-      total: sql<string>`COALESCE(SUM(${bomItems.catalogPricePaise} * ${bomItems.qty}), 0)`,
+      total: sql<string>`COALESCE(SUM(${bomItems.linePricePaise}), 0)`,
     })
       .from(boms)
       .leftJoin(bomItems, eq(bomItems.bomId, boms.id))

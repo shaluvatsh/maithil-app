@@ -61,12 +61,10 @@ export const NAKSHATRA_TERMS: TermSeed[] = ([
   ['revati','রেবতী','रेवती','Revati'],
 ] as Array<[string,string,string,string]>).map(([key, bn, hi, en]) => ({ key, bn, hi, en }));
 
-/** Bengali month names, for rendering the Bangabda date on the panchang tab. */
-export const BENGALI_MONTHS = [
-  'বৈশাখ', 'জ্যৈষ্ঠ', 'আষাঢ়', 'শ্রাবণ', 'ভাদ্র', 'আশ্বিন',
-  'কার্তিক', 'অগ্রহায়ণ', 'পৌষ', 'মাঘ', 'ফাল্গুন', 'চৈত্র',
-] as const;
-
-/** Bengali numerals, for the purohit app display toggle. */
-export const toBengaliNumerals = (s: string | number): string =>
-  String(s).replace(/\d/g, (d) => '০১২৩৪৫৬৭৮৯'[Number(d)]!);
+/*
+ * `BENGALI_MONTHS` and `toBengaliNumerals` lived here and were imported by nothing.
+ * Both already exist in `packages/region` — `formatEraDate` renders the Bangabda
+ * date and `toLocalNumerals` handles the digits, for every script rather than only
+ * Bengali. Two implementations of the same rule is how a month name gets corrected
+ * in one place and not the other; the one that was never called is the one to go.
+ */

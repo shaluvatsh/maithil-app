@@ -1,4 +1,6 @@
-import { Controller, Post, Get, Body, Param, Headers } from '@nestjs/common';
+import { Controller, Post, Get, Body, Param, Inject } from '@nestjs/common';
+import { CONFIG } from '../../common/tokens';
+import type { Config } from '../../common/config';
 import { BookingService } from './booking.service';
 import { PricingService } from './pricing.service';
 import { CatalogService } from '../catalog/catalog.service';
@@ -12,17 +14,26 @@ import {
 
 @Controller('v1/bookings')
 export class BookingController {
+  // Explicit tokens on every parameter.
+  //
+  // Nest's type-based constructor injection relies on `emitDecoratorMetadata`, which
+  // esbuild - and therefore both tsx and vitest - does not emit. Without it every
+  // injected dependency silently arrives as undefined and the route 500s at runtime
+  // while the build stays green. Naming the token removes the dependency on metadata.
   constructor(
-    private readonly bookings: BookingService,
-    private readonly pricing: PricingService,
-    private readonly catalog: CatalogService,
-    private readonly idempotency: IdempotencyService,
+    @Inject(BookingService) private readonly bookings: BookingService,
+    @Inject(PricingService) private readonly pricing: PricingService,
+    @Inject(CatalogService) private readonly catalog: CatalogService,
+    @Inject(IdempotencyService) private readonly idempotency: IdempotencyService,
+    @Inject(CONFIG) private readonly config: Config,
   ) {}
 
   @Post()
   async create(@CurrentUser() user: JwtClaims, @Body() raw: unknown) {
     const body = CreateBookingBody.parse(raw);
-    return this.bookings.createDraft({ ...body, devoteeId: user.sub, citySlug: 'kolkata' });
+    return this.bookings.createDraft({
+      ...body, devoteeId: user.sub, citySlug: this.config.LAUNCH_CITY_SLUG,
+    });
   }
 
   @Post(':id/submit')

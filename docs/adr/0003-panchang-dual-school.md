@@ -80,3 +80,58 @@ showing it is the single clearest signal that we know what we are doing.
   Gupta Press half needs the Surya Siddhanta algorithms *as the press actually applies them*,
   including their own corrections. Reproducing that without the press's own tables is a
   research project, not a sprint.
+
+---
+
+## Addendum — 8 August 2026: it is three schools, not two
+
+**Correction from founder ground truth, and it changes the model.**
+
+The ADR above assumed the Kolkata market splits along Bengal's two panjika schools. That
+framing had the supply side wrong and the demand side incomplete.
+
+**Supply.** Most purohits working in Kolkata are **Maithil Brahmins** — one of the five
+Pancha-Gauda communities, historically the priestly and Sanskrit-scholarly class of
+Mithila, with a long documented migration into Bengal. They are not a Bengali-serving
+niche; they perform rituals for Bengali, Marwari, Bihari and Maithil households across
+the city, switching vidhi as the household requires.
+
+**Demand.** Kolkata is not homogeneously Bengali. A purohit's day may include a Bengali
+Satyanarayan in the morning and a Marwari one in the afternoon.
+
+### What changes
+
+**1. A third panjika: `mithila`.** And it is not merely a third opinion on the same
+calendar. The Mithila Panchang keeps the classical **purnimant** month system, where a
+month ends at the full moon rather than the new moon. A krishna-paksha tithi therefore
+belongs to a *different named month* than under the amanta reckoning, which moves
+festival dates outright. It is also computed for Mithila's own coordinates.
+
+Consequence: our astronomy computes tithi and nakshatra correctly for any school, because
+those are angular quantities — but **month naming and festival mapping are not
+implemented for purnimant**. Mithila muhurat flags are hand-entered alongside Gupta Press
+until they are.
+
+**2. Match on vidhi and language, never on ethnicity.** `pandit_profiles.traditions[]` and
+`languages[]` already carry this correctly. What was wrong was the *marketing* framing —
+"Bengali purohit" is both inaccurate about who the purohits are and a promise we would
+routinely break. The devotee-facing claim is "performs your family's vidhi, speaks your
+language."
+
+**3. The catalogue must widen.** The 25 seeded rituals are Bengali-specific. Kolkata's
+Marwari, Bihari and Maithil households need their own vidhi variants — many share a name
+with a Bengali rite (Satyanarayan, Griha Pravesh) but differ in performance. Model this as
+a tradition variant on the ritual, not as separate rituals: `boms.tradition` already
+exists for exactly this and is currently unused.
+
+### Why the brand now makes sense
+
+"The Maithil" is a **supply-lineage** name — Mithila as the seat of ritual scholarship,
+which is a genuine authenticity claim about who performs your puja. That is a stronger
+premium story than a geographic or category name, and it is the one thing a competitor
+with 20,000 anonymous listed pandits cannot say.
+
+The tension to watch: a Bengali family often asks for a *Bangali thakur mashai*. Since
+Maithil purohits already serve those households in practice, this is the status quo rather
+than a substitution — but it is a reason to lead with **competence in the vidhi**, and let
+the lineage be the brand rather than the sales pitch.

@@ -4,10 +4,17 @@ export const Locale = z.enum(['bn', 'hi', 'en']);
 export type Locale = z.infer<typeof Locale>;
 
 /**
- * Bengal's two panjika traditions. They publish different dates for the same
- * festival. See ADR 0003 - this is a first-class dimension, not a setting.
+ * The panjika a household follows. A first-class dimension, not a setting.
+ *
+ * Bengal's two schools disagree with each other; the Mithila Panchang additionally
+ * uses the purnimant month system, which is a structural difference. Kolkata contains
+ * households following all three. See ADR 0003.
  */
-export const PanjikaSchool = z.enum(['bisuddha_siddhanta', 'gupta_press']);
+/** Must match `PanjikaId` in packages/region and the `panjika_school` pg enum. */
+export const PanjikaSchool = z.enum([
+  'bisuddha_siddhanta', 'gupta_press', 'mithila',
+  'vikram_banaras', 'tamil_vakya', 'drik_generic',
+]);
 export type PanjikaSchool = z.infer<typeof PanjikaSchool>;
 
 export const UserRole = z.enum(['devotee', 'pandit', 'admin', 'ops']);

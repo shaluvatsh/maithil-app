@@ -23,6 +23,12 @@ export const PanditCard = z.object({
   name: z.string(),
   photoUrl: z.string().nullable(),
   badges: z.array(z.string()),
+  /**
+   * A 30-second recording of them chanting, and what they are reciting. Devotees
+   * judge shuddha uchcharan, and no competitor lets them hear it before booking.
+   */
+  chantingSampleUrl: z.string().nullable(),
+  chantingSampleLabel: z.string().nullable(),
   experienceYears: z.number().int(),
   languages: z.array(z.string()),
   traditions: z.array(z.string()),

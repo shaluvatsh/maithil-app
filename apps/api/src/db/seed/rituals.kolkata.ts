@@ -19,6 +19,11 @@ export interface RitualSeed {
   bandMin: number; bandMax: number; bandDefault: number;
   names: { bn: string; hi: string; en: string };
   short: { bn: string; en: string };
+  /**
+   * Where it happens. Omitted means the purohit comes to you, which is true of all
+   * 25 traditional rituals. Virtual services have no travel and no samagri.
+   */
+  deliveryMode?: 'at_home' | 'virtual';
 }
 
 const R = (n: number) => n * 100; // rupees -> paise
@@ -168,19 +173,73 @@ export const KOLKATA_RITUALS: RitualSeed[] = [
     bandMin: R(1100), bandMax: R(2500), bandDefault: R(1500),
     names: { bn: 'নামকরণ', hi: 'नामकरण', en: 'Namkaran' },
     short: { bn: 'শিশুর নামকরণ অনুষ্ঠান', en: 'Naming ceremony' } },
+
+  /* ------------------------------------------------------------------ remote --
+   * These three were hardcoded marketing cards on the home page with a Book Now
+   * that led to a catalogue not containing them. They are now real, bookable and
+   * priced.
+   *
+   * The fourth card, "Express Booking", is deliberately NOT here. It described a
+   * lead time, not a service — every ritual can be booked at short notice, so
+   * modelling it as a ritual would have created a row nobody could perform. It is
+   * a filter on the booking flow instead.
+   */
+
+  { slug: 'online-aarti', durationMin: 45, slotSpan: 1, muhuratSensitive: false,
+    bandMin: R(399), bandMax: R(899), bandDefault: R(499),
+    deliveryMode: 'virtual',
+    names: { bn: 'অনলাইন আরতি', hi: 'ऑनलाइन आरती', en: 'Online Aarti' },
+    short: { bn: 'ভিডিওতে সরাসরি আরতি, যেখানেই থাকুন',
+             en: 'Live aarti by video, joined from anywhere' } },
+
+  { slug: 'virtual-consultation', durationMin: 60, slotSpan: 1, muhuratSensitive: false,
+    bandMin: R(899), bandMax: R(2100), bandDefault: R(1100),
+    deliveryMode: 'virtual',
+    names: { bn: 'ভার্চুয়াল পরামর্শ', hi: 'वर्चुअल परामर्श', en: 'Virtual Consultation' },
+    short: { bn: 'অভিজ্ঞ পুরোহিতের সঙ্গে ভিডিও কলে পরামর্শ',
+             en: 'Video consultation with an experienced purohit' } },
+
+  { slug: 'personalised-puja', durationMin: 150, slotSpan: 1, muhuratSensitive: true,
+    bandMin: R(2100), bandMax: R(5100), bandDefault: R(3499),
+    names: { bn: 'ব্যক্তিগত পূজা', hi: 'व्यक्तिगत पूजा', en: 'Personalised Puja' },
+    short: { bn: 'জন্মকুণ্ডলী অনুসারে বিশেষভাবে নির্ধারিত পূজা',
+             en: 'Puja shaped around your birth chart' } },
 ];
 
 /**
- * BOM base shared by most pujas, plus per-ritual additions. Prices are Kolkata
- * catalogue rates in paise. Perishables are flagged because they can never be
- * pre-packed - they are same-day local sourcing, always.
+ * Samagri, tiered by the scale of the ritual.
+ *
+ * Previously ONE 13-item list was attached to all 25 rituals, so the materials bill
+ * was ~₹1,000 whatever you booked. That produced two nonsenses at once: a tarpan —
+ * water, til and kusha grass on a ghat — was charged a kalash, 250g of ghee and a
+ * garland, so its materials cost TWICE its dakshina; while a full Bengali biye got
+ * the same ₹1,000 of samagri, which would not cover the chhadnatala.
+ *
+ * Four kits now. The tier is a property of the ritual, not a constant.
+ *
+ * Prices are Kolkata catalogue rates in paise and remain illustrative — validate
+ * with the consulting purohit before seeding production. Perishables are flagged
+ * because they can never be pre-packed; they are same-day local sourcing, always.
  */
+export type SamagriTier = 'none' | 'minimal' | 'standard' | 'elaborate' | 'grand';
+
 export interface BomItemSeed {
   qty: string; unit: string; grade?: string; price: number; perishable?: boolean;
   names: { bn: string; hi: string; en: string };
 }
 
-export const BASE_BOM: BomItemSeed[] = [
+/** Just what the rite physically needs. Tarpan and Halkhata. ~₹180. */
+const MINIMAL_KIT: BomItemSeed[] = [
+  { qty: '100', unit: 'g', price: R(40), names: { bn: 'তিল', hi: 'तिल', en: 'Til (sesame)' } },
+  { qty: '1', unit: 'bunch', price: R(25), perishable: true,
+    names: { bn: 'কুশ ও দূর্বা', hi: 'कुश और दूर्वा', en: 'Kusha and durba grass' } },
+  { qty: '1', unit: 'bunch', price: R(60), perishable: true,
+    names: { bn: 'ফুল', hi: 'फूल', en: 'Flowers' } },
+  { qty: '1', unit: 'set', price: R(55), names: { bn: 'সিঁদুর ও চন্দন', hi: 'सिंदूर और चंदन', en: 'Sindoor and chandan' } },
+];
+
+/** The everyday household puja. ~₹880. */
+const STANDARD_KIT: BomItemSeed[] = [
   { qty: '1', unit: 'kg', price: R(65), names: { bn: 'আতপ চাল', hi: 'अक्षत', en: 'Atop rice' } },
   { qty: '250', unit: 'g', price: R(180), names: { bn: 'ঘি', hi: 'घी', en: 'Ghee' } },
   { qty: '1', unit: 'packet', price: R(40), names: { bn: 'ধূপকাঠি', hi: 'अगरबत्ती', en: 'Incense sticks' } },
@@ -203,16 +262,91 @@ export const BASE_BOM: BomItemSeed[] = [
     names: { bn: 'ফল (৫ প্রকার)', hi: 'फल', en: 'Fruit, five kinds' } },
 ];
 
+/** A homa, a longer vidhi, more guests. Griha prabesh, annaprashan, sraddha. ~₹2,240. */
+const ELABORATE_KIT: BomItemSeed[] = [
+  ...STANDARD_KIT,
+  { qty: '500', unit: 'g', price: R(140), names: { bn: 'হোম সামগ্রী', hi: 'हवन सामग्री', en: 'Homa samagri' } },
+  { qty: '500', unit: 'g', price: R(360), names: { bn: 'অতিরিক্ত ঘি', hi: 'अतिरिक्त घी', en: 'Additional ghee' } },
+  { qty: '1', unit: 'set', price: R(140), perishable: true,
+    names: { bn: 'পঞ্চামৃত', hi: 'पंचामृत', en: 'Panchamrit set' } },
+  { qty: '1', unit: 'set', price: R(220), names: { bn: 'নতুন বস্ত্র', hi: 'नया वस्त्र', en: 'New cloth' } },
+  { qty: '1', unit: 'set', price: R(200), perishable: true,
+    names: { bn: 'অতিরিক্ত ফল ও মিষ্টি', hi: 'अतिरिक्त फल और मिठाई', en: 'Additional fruit and sweets' } },
+];
+
+/** Multi-day or multi-hour ceremonies. Biye, upanayan, a household Durga puja. ~₹8,380. */
+const GRAND_KIT: BomItemSeed[] = [
+  ...ELABORATE_KIT,
+  { qty: '1', unit: 'set', price: R(900), names: { bn: 'বড় হোমকুণ্ড সামগ্রী', hi: 'हवन कुंड सामग्री', en: 'Large homa kund materials' } },
+  { qty: '1', unit: 'set', price: R(1200), perishable: true,
+    names: { bn: 'নবপত্রিকা ও ছাদনাতলা সামগ্রী', hi: 'नवपत्रिका सामग्री', en: 'Navapatrika and mandap materials' } },
+  { qty: '1', unit: 'lot', price: R(1100), perishable: true,
+    names: { bn: 'বিপুল ফুল ও মালা', hi: 'फूल और माला', en: 'Flowers and garlands, full ceremony' } },
+  { qty: '2', unit: 'kg', price: R(720), names: { bn: 'ঘি (২ কেজি)', hi: 'घी', en: 'Ghee, two kilos' } },
+  { qty: '1', unit: 'set', price: R(800), names: { bn: 'পূজার বাসনপত্র', hi: 'पूजा के बर्तन', en: 'Puja vessels' } },
+  { qty: '1', unit: 'set', price: R(700), perishable: true,
+    names: { bn: 'ভোগ ও মিষ্টি', hi: 'भोग और मिठाई', en: 'Bhog and sweets' } },
+];
+
+export const SAMAGRI_KITS: Record<SamagriTier, BomItemSeed[]> = {
+  none: [],
+  minimal: MINIMAL_KIT,
+  standard: STANDARD_KIT,
+  elaborate: ELABORATE_KIT,
+  grand: GRAND_KIT,
+};
+
+/**
+ * Which kit each ritual takes. Anything unlisted is `standard`, which is the right
+ * default for a household puja — the two that must never fall through are the tiny
+ * rites (they get overcharged) and the ceremonies (they get undersupplied).
+ */
+const SAMAGRI_TIER: Record<string, SamagriTier> = {
+  // Barely any materials at all.
+  tarpan: 'minimal',
+  halkhata: 'minimal',
+
+  // A homa, a longer vidhi, guests to feed.
+  //
+  // Annaprashan and namkaran are deliberately NOT here despite being occasions: both
+  // are short home rites with no homa, and the elaborate kit pushed their materials
+  // above their dakshina — the same inversion that made tarpan absurd.
+  'griha-prabesh': 'elaborate',
+  sraddha: 'elaborate',
+  'nabagraha-shanti': 'elaborate',
+  'bastu-puja': 'elaborate',
+  'kali-puja': 'elaborate',
+  'jagaddhatri-puja': 'elaborate',
+  'personalised-puja': 'elaborate',
+
+  // Ceremonies that run for hours or days.
+  biye: 'grand',
+  upanayan: 'grand',
+  'durga-puja-ghot': 'grand',
+
+  // Nothing to carry down a video call.
+  'online-aarti': 'none',
+  'virtual-consultation': 'none',
+};
+
+export const samagriTierFor = (slug: string, deliveryMode?: string): SamagriTier =>
+  deliveryMode === 'virtual' ? 'none' : (SAMAGRI_TIER[slug] ?? 'standard');
+
+export const samagriKitFor = (slug: string, deliveryMode?: string): BomItemSeed[] =>
+  SAMAGRI_KITS[samagriTierFor(slug, deliveryMode)];
+
 export const BOM_ADDITIONS: Record<string, BomItemSeed[]> = {
   'satyanarayan-puja': [
     { qty: '1', unit: 'set', price: R(180),
       names: { bn: 'সিন্নির উপকরণ', hi: 'सिन्नी सामग्री', en: 'Sinni ingredients' } },
   ],
+  // Homa samagri and new cloth come with the elaborate kit; these are the two items
+  // specific to entering a house.
   'griha-prabesh': [
-    { qty: '500', unit: 'g', price: R(140),
-      names: { bn: 'হোম সামগ্রী', hi: 'हवन सामग्री', en: 'Homa samagri' } },
-    { qty: '1', unit: 'piece', price: R(220),
-      names: { bn: 'নতুন ধুতি ও গামছা', hi: 'नई धोती', en: 'New dhoti and gamcha' } },
+    { qty: '1', unit: 'piece', price: R(260),
+      names: { bn: 'বাস্তু যন্ত্র', hi: 'वास्तु यंत्र', en: 'Vastu yantra' } },
+    { qty: '1', unit: 'bottle', price: R(60),
+      names: { bn: 'গঙ্গাজল', hi: 'गंगाजल', en: 'Gangajal' } },
   ],
   'annaprashan': [
     { qty: '1', unit: 'set', price: R(260),
@@ -224,7 +358,6 @@ export const BOM_ADDITIONS: Record<string, BomItemSeed[]> = {
     { qty: '3', unit: 'piece', price: R(90), names: { bn: 'পৈতে', hi: 'जनेऊ', en: 'Sacred thread' } },
     { qty: '1', unit: 'set', price: R(340),
       names: { bn: 'কৌপীন ও উত্তরীয়', hi: 'कौपीन', en: 'Kaupin and uttariya' } },
-    { qty: '1', unit: 'kg', price: R(280), names: { bn: 'হোম সামগ্রী', hi: 'हवन सामग्री', en: 'Homa samagri' } },
   ],
   'biye': [
     { qty: '1', unit: 'set', price: R(450),

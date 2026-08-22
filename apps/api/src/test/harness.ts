@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { ulid } from 'ulid';
@@ -16,6 +16,7 @@ import { BookingOtpService } from '../modules/auth/otp.service';
 import { CatalogService } from '../modules/catalog/catalog.service';
 import { AvailabilityService } from '../modules/availability/availability.service';
 import { PricingService } from '../modules/booking/pricing.service';
+import { SearchService } from '../modules/search/search.service';
 import { BookingService } from '../modules/booking/booking.service';
 import { IdempotencyService } from '../common/idempotency';
 import { KOLKATA_SLOT_DEFS } from '../db/seed/rituals.kolkata';
@@ -53,7 +54,10 @@ export interface Harness {
 export async function makeHarness(opts: { dakshinaPaise?: number } = {}): Promise<Harness> {
   const pg = await PGlite.create({ extensions: { btree_gist } });
   await pg.exec('CREATE EXTENSION IF NOT EXISTS btree_gist;');
-  for (const file of ['0000_init.sql', '9999_guards.sql']) {
+  // Every migration, in filename order - the same set and order the production
+  // runner applies. Naming two files explicitly meant new migrations silently never
+  // ran in tests, so the schema under test drifted from the real one.
+  for (const file of readdirSync(migrations).filter((f) => f.endsWith('.sql')).sort()) {
     for (const stmt of readFileSync(join(migrations, file), 'utf8').split('--> statement-breakpoint')) {
       if (stmt.trim()) await pg.exec(stmt);
     }
@@ -106,7 +110,7 @@ export async function makeHarness(opts: { dakshinaPaise?: number } = {}): Promis
   await db.insert(schema.boms).values({ id: bomId, ritualId, cityId, version: 1, status: 'active' });
   const itemId = ulid();
   await db.insert(schema.bomItems).values({
-    id: itemId, bomId, qty: '1', unit: 'set', catalogPricePaise: 80000, perishable: false,
+    id: itemId, bomId, qty: '1', unit: 'set', linePricePaise: 80000, perishable: false,
   });
   await db.insert(schema.bomItemTranslations).values({
     bomItemId: itemId, locale: 'bn', name: 'পূজার উপকরণ',
@@ -120,9 +124,12 @@ export async function makeHarness(opts: { dakshinaPaise?: number } = {}): Promis
   const outbox = new OutboxService();
   const pricing = new PricingService(db, catalog);
   const otp = new BookingOtpService(TEST_CONFIG.JWT_ACCESS_SECRET);
+  const search = new SearchService(db);
   const bookings = new BookingService(
     db, pricing, catalog, availability, slots, ledger, outbox, otp, kv,
-    TEST_CONFIG.BOOKING_HORIZON_DAYS, true,
+    TEST_CONFIG.BOOKING_HORIZON_DAYS,
+    { matchPandit: (a) => search.matchPandit(a as never) },
+    true,
   );
 
   await availability.materialise({ panditId, cityId });

@@ -2,10 +2,28 @@ import { pgEnum } from 'drizzle-orm/pg-core';
 
 export const localeEnum = pgEnum('locale', ['bn', 'hi', 'en']);
 
-/** Bengal's two panjika traditions. First-class dimension - see ADR 0003. */
+/**
+ * The panjika a household follows. First-class dimension - see ADR 0003.
+ *
+ * Not merely competing opinions. Mithila and Banaras keep the classical PURNIMANT
+ * system, where a month ends at the full moon rather than the new moon. That shifts
+ * which month a krishna-paksha tithi belongs to, and therefore shifts festival dates
+ * and names - a structural difference, not a calibration one.
+ *
+ * This list held only the three Bengal-and-Mithila values while `packages/region`
+ * had already been expanded pan-India, so twelve cities declared almanacs the
+ * database could not store. The materialiser fell back to `bisuddha_siddhanta` for
+ * all of them, which every city could store and no city outside Bengal offers, so
+ * the rows were written and then never found. This list and
+ * `packages/region/src/types.ts` must agree; `panjika-parity.test.ts` enforces it.
+ */
 export const panjikaSchoolEnum = pgEnum('panjika_school', [
   'bisuddha_siddhanta',
   'gupta_press',
+  'mithila',
+  'vikram_banaras',
+  'tamil_vakya',
+  'drik_generic',
 ]);
 
 export const userRoleEnum = pgEnum('user_role', ['devotee', 'pandit', 'admin', 'ops']);
@@ -51,6 +69,7 @@ export const paymentIntentKindEnum = pgEnum('payment_intent_kind', [
 export const paymentIntentStatusEnum = pgEnum('payment_intent_status', [
   'created', 'attempted', 'captured', 'failed', 'refunded',
 ]);
+export const payoutMethodEnum = pgEnum('payout_method', ['bank_account', 'upi']);
 export const payoutStatusEnum = pgEnum('payout_status', [
   'pending', 'processing', 'paid', 'failed', 'reversed',
 ]);

@@ -17,7 +17,14 @@ export const PriceBreakdownSchema = z.object({
 });
 
 export const CreateBookingBody = z.object({
-  panditId: Ulid,
+  /**
+   * Omit to have the platform assign one — the default flow. The devotee is not
+   * asked to choose between purohits they have no basis to compare.
+   *
+   * Supplied only by the "book this specific purohit" flow, reached from a
+   * purohit's profile or from a past booking.
+   */
+  panditId: Ulid.optional(),
   ritualId: Ulid,
   addressId: Ulid,
   date: IsoDate,

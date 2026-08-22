@@ -4,12 +4,18 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "tsc -p tsconfig.json",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "build": "tsc -p tsconfig.json --noEmit && node build.mjs",
+    "typecheck": "tsc -p tsconfig.test.json",
     "test": "vitest run",
     "dev": "tsx watch src/main.ts",
     "db:migrate": "tsx src/db/migrate.ts",
-    "db:seed": "tsx src/db/seed/index.ts"
+    "db:seed": "tsx src/db/seed/index.ts",
+    "db:seed:dev": "tsx src/db/seed/dev.ts",
+    "start": "node dist/main.js",
+    "predev": "pnpm --filter @themaithil/region --filter @themaithil/contracts build",
+    "predb:migrate": "pnpm --filter @themaithil/region --filter @themaithil/contracts build",
+    "predb:seed": "pnpm --filter @themaithil/region --filter @themaithil/contracts build",
+    "predb:seed:dev": "pnpm --filter @themaithil/region --filter @themaithil/contracts build"
   },
   "dependencies": {
     "@nestjs/common": "^10.4.15",
@@ -22,16 +28,19 @@
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
     "ulid": "^2.3.0",
-    "zod": "^3.24.1"
+    "zod": "^3.24.1",
+    "@themaithil/region": "workspace:*"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.4",
+    "@nestjs/testing": "^11.1.28",
     "@types/express": "^5.0.6",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^22.10.2",
     "@types/supertest": "^7.2.1",
     "drizzle-kit": "^0.30.1",
     "drizzle-orm": "^0.38.4",
+    "esbuild": "^0.28.1",
     "supertest": "^7.2.2",
     "tsx": "^4.19.2",
     "typescript": "^5.7.2",
