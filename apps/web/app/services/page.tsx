@@ -66,9 +66,7 @@ export default async function ServicesPage() {
         <nav className="hub-jump" aria-label="Jump to a category">
           {grouped.map(({ category: c, items }) => (
             <a key={c.id} href={`#${c.id}`} className="jump-pill">
-              <span className="jp-tile" style={{ background: c.tint }} aria-hidden>
-                {c.emoji}
-              </span>
+              <img className="jp-tile" src={`/images/categories/${c.id}.jpg`} alt="" aria-hidden />
               {c.en}
               <span className="n">{items.length}</span>
             </a>
@@ -79,7 +77,7 @@ export default async function ServicesPage() {
       {grouped.map(({ category: c, items }) => (
         <section key={c.id} id={c.id} className="hub-group">
           <div className="hub-group-head">
-            <span className="hub-tile" style={{ background: c.tint }} aria-hidden>{c.emoji}</span>
+            <img className="hub-tile" src={`/images/categories/${c.id}.jpg`} alt="" aria-hidden />
             <div>
               <h2>{c.en}</h2>
               <p className="muted">{c.blurb}</p>
@@ -122,10 +120,19 @@ export default async function ServicesPage() {
         </section>
       ))}
 
+      {/* Same split as the home page's category error: the devotee gets a way
+          forward, the migrate command goes to whoever can run it. */}
       {grouped.length === 0 && (
-        <div className="notice err">
+        <div className="notice err" role="alert">
           <strong>The catalogue could not be loaded.</strong>{' '}
-          Run <code>pnpm db:migrate &amp;&amp; pnpm db:seed</code>, then refresh.
+          Please refresh in a moment — or{' '}
+          <Link href="/contact">tell us what you need</Link> and we will book it for you.
+          {process.env.NODE_ENV !== 'production' && (
+            <div className="muted" style={{ fontSize: '.88rem', marginTop: 6 }}>
+              Usually a pending migration. Run{' '}
+              <code>pnpm db:migrate &amp;&amp; pnpm db:seed</code>, then refresh.
+            </div>
+          )}
         </div>
       )}
 

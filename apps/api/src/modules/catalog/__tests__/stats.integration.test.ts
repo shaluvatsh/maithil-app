@@ -1,5 +1,4 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { eq } from 'drizzle-orm';
 import { makeHarness, type Harness } from '../../../test/harness';
 import { panditProfiles } from '../../../db/schema/index';
 import { StatsService } from '../stats.service';

@@ -105,12 +105,12 @@ export function PayoutAccountForm({
       {!compact && <h2 style={{ marginTop: 0 }}>Where should we send your money?</h2>}
 
       <div className="pickgrid">
-        <button type="button" className={`pickbox${method === 'bank_account' ? ' on' : ''}`}
+        <button type="button" className={`opt${method === 'bank_account' ? ' on' : ''}`}
                 aria-pressed={method === 'bank_account'}
                 onClick={() => setMethod('bank_account')}>
           Bank account<span className="s">Any Indian bank</span>
         </button>
-        <button type="button" className={`pickbox${method === 'upi' ? ' on' : ''}`}
+        <button type="button" className={`opt${method === 'upi' ? ' on' : ''}`}
                 aria-pressed={method === 'upi'}
                 onClick={() => setMethod('upi')}>
           UPI<span className="s">GPay, PhonePe, Paytm</span>
@@ -189,9 +189,23 @@ export function PayoutAccountForm({
  * A purohit who completes jobs and cannot be paid will not chase this on their own —
  * they will assume it is coming, and find out on payout day.
  */
+/**
+ * Opens as a banner, not a form.
+ *
+ * This used to render the whole bank/UPI form inline, unprompted, above the job
+ * list — a purohit signing in to see today's work met four empty text inputs
+ * first, and on a phone that was the entire opening screen. Adding a payout
+ * account is a once-ever task; reading the job inbox is why they came back today,
+ * and the once-ever task was outranking it every single visit.
+ *
+ * Still impossible to miss (it is the only warm block on the page) and still not
+ * dismissible while unlinked — money genuinely cannot move without it, so hiding
+ * it for good would be worse. It just no longer opens itself.
+ */
 export function PayoutAccountPanel() {
   const [account, setAccount] = useState<PayoutAccount | null>(null);
   const [loading, setLoading] = useState(true);
+  const [open, setOpen] = useState(false);
 
   useEffect(() => {
     api<PayoutAccount>('/v1/me/purohit/payout-account')
@@ -201,18 +215,47 @@ export function PayoutAccountPanel() {
 
   if (loading) return null;
 
+  const linked = Boolean(account?.linked);
+
+  // Settled: a quiet line stating where the money goes, expandable to change it.
+  if (linked && !open) {
+    return (
+      <section className="payout-banner">
+        <div>
+          <strong>Payouts go to</strong>
+          <span className="muted"> {describeAccount(account!)}</span>
+        </div>
+        <button className="btn outline sm" onClick={() => setOpen(true)}>Change</button>
+      </section>
+    );
+  }
+
+  if (!linked && !open) {
+    return (
+      <section className="payout-banner warn">
+        <div>
+          <strong>We cannot pay you yet</strong>
+          <span className="muted">
+            {' '}Add a bank account or UPI id. What you earn stays on your balance until
+            you do — nothing is lost, but nothing can be sent either.
+          </span>
+        </div>
+        <button className="btn sm" onClick={() => setOpen(true)}>Add account</button>
+      </section>
+    );
+  }
+
   return (
-    <section className={account?.linked ? 'card payout-card' : 'card payout-card warn'}>
-      {!account?.linked && (
-        <>
-          <h2 style={{ marginTop: 0 }}>We cannot pay you yet</h2>
-          <p className="muted">
-            Add a bank account or UPI id. Until you do, what you earn stays on your
-            balance — nothing is lost, but nothing can be sent either.
-          </p>
-        </>
-      )}
-      <PayoutAccountForm account={account} onSaved={setAccount} compact={!account?.linked} />
+    <section className={linked ? 'card payout-card' : 'card payout-card warn'}>
+      <div className="spread" style={{ marginBottom: 12 }}>
+        <h2 style={{ margin: 0 }}>{linked ? 'Where you get paid' : 'We cannot pay you yet'}</h2>
+        <button className="btn outline sm" onClick={() => setOpen(false)}>Close</button>
+      </div>
+      <PayoutAccountForm
+        account={account}
+        onSaved={(a) => { setAccount(a); setOpen(false); }}
+        compact={!linked}
+      />
     </section>
   );
 }

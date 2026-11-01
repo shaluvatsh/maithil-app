@@ -49,7 +49,6 @@ export class RedisKv implements KvStore {
     get(k: string): Promise<string | null>;
     del(k: string): Promise<number>;
     incr(k: string): Promise<number>;
-    expire(k: string, ttl: number): Promise<number>;
   }) {}
 
   async setIfAbsent(key: string, value: string, ttlSeconds: number): Promise<boolean> {
@@ -57,9 +56,22 @@ export class RedisKv implements KvStore {
   }
   async get(key: string) { return this.redis.get(key); }
   async del(key: string) { await this.redis.del(key); }
+  /**
+   * `INCR` then, on the first hit, a separate `EXPIRE` used to leave a window where a
+   * crash or a dropped connection between the two calls left the key permanently
+   * un-expiring - it only ever got an EXPIRE attempt when `n === 1`, and that moment
+   * had already passed. For `otp:sends:${phone}`, the one place this really bites,
+   * that turns a single transient blip into a phone number permanently unable to
+   * request a login OTP again: every future call still increments a counter that
+   * never resets, so it stays over MAX_SENDS_PER_HOUR forever.
+   *
+   * `SET key 0 EX ttl NX` establishes the TTL atomically WITH the key's creation, not
+   * as a follow-up step - there is no window where the key exists without one. It
+   * no-ops if the key is already there (an ordinary hit within the window), so this
+   * two-round-trip version costs one extra call only on the very first increment.
+   */
   async incr(key: string, ttlSeconds: number): Promise<number> {
-    const n = await this.redis.incr(key);
-    if (n === 1) await this.redis.expire(key, ttlSeconds);
-    return n;
+    await this.redis.set(key, '0', 'EX', ttlSeconds, 'NX');
+    return this.redis.incr(key);
   }
 }

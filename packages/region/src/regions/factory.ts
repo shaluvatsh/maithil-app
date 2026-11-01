@@ -57,6 +57,7 @@ export interface CitySpec {
   panjikas?: Panjika[];
   slots?: SlotDef[];
   travelGapMinutes?: number;
+  avgSpeedKmph?: number;
   ritualSet?: string;
   priceIndexBps?: number;
   active?: boolean;
@@ -78,6 +79,9 @@ export function city(spec: CitySpec): Region {
     defaultPanjika: panjikas[0]!.id,
     slots: spec.slots ?? STANDARD_SLOTS,
     travelGapMinutes: spec.travelGapMinutes ?? 45,
+    // 18 km/h: slow on purpose. It is applied to a straight-line distance, so it
+    // must cover the road detour as well as the traffic.
+    avgSpeedKmph: spec.avgSpeedKmph ?? 18,
     ritualSet: spec.ritualSet ?? 'north',
     priceIndexBps: spec.priceIndexBps ?? 10000,
     currency: 'INR',

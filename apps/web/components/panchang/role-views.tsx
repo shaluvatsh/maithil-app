@@ -2,7 +2,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import { useRegion } from '@/lib/region-context';
-import type { CalendarDay } from '@/components/panchang-calendar';
 
 /**
  * The same calendar, three questions.

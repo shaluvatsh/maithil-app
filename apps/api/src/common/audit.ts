@@ -1,5 +1,5 @@
 import { ulid } from 'ulid';
-import type { Db, Executor } from '../db/client';
+import type { Executor } from '../db/client';
 import { auditLog } from '../db/schema/index';
 
 /**

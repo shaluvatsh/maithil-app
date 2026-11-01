@@ -1,3 +1,4 @@
+import { bookableTimes, TODAY } from './setup';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import { RegionProvider } from '@/lib/region-context';
@@ -36,7 +37,8 @@ function mockApi() {
   global.fetch = vi.fn(async (input: RequestInfo | URL) => {
     const url = String(input);
     const body =
-      url.includes('/v1/categories') ? []
+      url.includes('/v1/availability/times') ? bookableTimes(TODAY)
+      : url.includes('/v1/categories') ? []
       : url.includes('/v1/rituals') ? RITUALS
       : url.includes('/v1/panchang') ? []
       : url.includes('/v1/search/pandits') ? { results: [] }
@@ -135,7 +137,10 @@ describe('the booking page honours what the card asked for', () => {
 
     expect(await screen.findByRole('heading', { name: /choose a date/i })).toBeInTheDocument();
     expect(screen.getByText(/step 2 of 3/i)).toBeInTheDocument();
-    expect(screen.getByText('Griha Prabesh')).toBeInTheDocument();
+    // Shown twice now - the "chosen" card and the booking summary sidebar both
+    // carry the plain name (the chosen card used to prefix it with an emoji,
+    // which is why this used to be the only exact match on the page).
+    expect(screen.getAllByText('Griha Prabesh').length).toBeGreaterThan(0);
   });
 
   it('ignores an unknown slug instead of hanging on an empty step', async () => {

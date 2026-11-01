@@ -129,12 +129,30 @@ describe('accepted document types', () => {
  * end to end in CI without a bucket — the same arrangement as `FakeGateway`.
  */
 describe('the in-memory store', () => {
-  it('hands out obviously fake URLs', async () => {
-    const s = new InMemoryObjectStore();
+  /**
+   * This asserted the URL began `memory://`, to stop anyone believing an upload had
+   * succeeded where nothing was stored. Sound reasoning, wrong conclusion: a browser
+   * cannot PUT to an unknown scheme — `fetch` REJECTS rather than returning a failed
+   * response — so document upload could not work in development at all, and once
+   * verification required four documents, neither could purohit onboarding.
+   *
+   * The store keeps and serves the bytes now, so the original worry is answered by
+   * being true rather than by being obviously fake. What remains is that nobody
+   * should mistake it for real object storage, and the URL still says so: it points
+   * at this process, on a path marked `dev`.
+   */
+  it('hands out a URL a browser can reach, that is plainly not a bucket', async () => {
+    const s = new InMemoryObjectStore('http://localhost:3000');
     const { url } = await s.presignUpload({ key: 'k', contentType: 'image/png' });
-    // A plausible-looking R2 URL would invite someone to believe an upload succeeded
-    // in an environment where nothing is stored.
-    expect(url.startsWith('memory://')).toBe(true);
+    expect(url.startsWith('http://'), `a browser cannot PUT to ${url}`).toBe(true);
+    expect(url).toContain('/v1/dev/uploads/');
+  });
+
+  it('serves back exactly the bytes it was given', async () => {
+    const s = new InMemoryObjectStore();
+    await s.presignUpload({ key: 'kyc/p1/id.jpg', contentType: 'image/jpeg' });
+    s.put('kyc/p1/id.jpg', 'image/jpeg', new Uint8Array([1, 2, 3]));
+    expect(Array.from(s.get('kyc/p1/id.jpg')!.body!)).toEqual([1, 2, 3]);
   });
 
   it('records what was stored and what was purged', async () => {

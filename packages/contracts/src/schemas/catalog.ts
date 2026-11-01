@@ -16,6 +16,13 @@ export const RitualSummary = z.object({
     defaultPaise: z.number().int(),
   }),
   bomTotalPaise: z.number().int(),
+  /**
+   * How many items are on the list, which a zero total no longer implies.
+   * An online aarti's checklist is priced at zero deliberately — the devotee buys
+   * the diya themselves — so "nothing to bring" and "four things to have ready"
+   * are both `bomTotalPaise: 0` and only this tells them apart.
+   */
+  bomItemCount: z.number().int().default(0),
   isMuhuratSensitive: z.boolean(),
   category: z.string(),
 });

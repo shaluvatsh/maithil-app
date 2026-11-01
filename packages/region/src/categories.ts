@@ -90,6 +90,7 @@ export const RITUAL_CATEGORY_MAP: Record<string, RitualCategoryId> = {
   'ganesh-puja': 'home-and-new-beginnings',
 
   // Festival pujas
+  'durga-puja': 'festival-pujas',
   'durga-puja-ghot': 'festival-pujas',
   'kali-puja': 'festival-pujas',
   'lakshmi-puja': 'festival-pujas',
@@ -108,6 +109,9 @@ export const RITUAL_CATEGORY_MAP: Record<string, RitualCategoryId> = {
   // Peace and remedies
   'nabagraha-shanti': 'peace-and-remedies',
   'rudrabhishek': 'peace-and-remedies',
+  'chandi-paath': 'peace-and-remedies',
+  'rudra-chandi-paath': 'peace-and-remedies',
+  'mahamrityunjay-jaap': 'peace-and-remedies',
   'mangal-chandi-puja': 'peace-and-remedies',
   'annapurna-puja': 'peace-and-remedies',
   'personalised-puja': 'peace-and-remedies',

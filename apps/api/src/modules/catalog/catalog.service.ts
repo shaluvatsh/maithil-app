@@ -1,4 +1,4 @@
-import { eq, and, sql, inArray } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
 import type { Db } from '../../db/client';
 import {
   rituals, ritualTranslations, ritualCityPrices, boms, bomItems,
@@ -44,6 +44,14 @@ export class CatalogService {
         ritualId: boms.ritualId,
         total: sql<number>`COALESCE(SUM(${bomItems.linePricePaise}), 0)::bigint`
           .as('total'),
+        /*
+         * Counted as well as summed, because the two answer different questions and
+         * a zero total no longer implies an empty list. An online aarti's checklist
+         * is priced at zero on purpose — the devotee buys the diya themselves — so
+         * a caller keying off `bomTotalPaise` alone cannot tell "nothing to bring"
+         * from "four things to have ready".
+         */
+        itemCount: sql<number>`COUNT(${bomItems.id})::int`.as('item_count'),
       })
       .from(boms)
       .leftJoin(bomItems, eq(bomItems.bomId, boms.id))
@@ -67,6 +75,7 @@ export class CatalogService {
         bandMax: ritualCityPrices.bandMaxPaise,
         bandDefault: ritualCityPrices.defaultPaise,
         bomTotal: sql<number>`COALESCE(bom_totals.total, 0)::bigint`,
+        bomItemCount: sql<number>`COALESCE(bom_totals.item_count, 0)::int`,
       })
       .from(rituals)
       .innerJoin(ritualCityPrices, and(
@@ -103,6 +112,7 @@ export class CatalogService {
         defaultPaise: Number(r.bandDefault),
       },
       bomTotalPaise: Number(r.bomTotal),
+      bomItemCount: Number(r.bomItemCount ?? 0),
     }));
   }
 

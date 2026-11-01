@@ -1,11 +1,15 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { RegionProvider } from '@/lib/region-context';
 import { Nav } from '@/app/nav';
 import LoginPage from '@/app/login/page';
 
 const withRegion = (node: React.ReactNode) => render(<RegionProvider>{node}</RegionProvider>);
+
+const json = (b: unknown, status = 200) => new Response(JSON.stringify(b), {
+  status, headers: { 'content-type': 'application/json' },
+});
 
 beforeEach(() => { localStorage.clear(); });
 
@@ -101,5 +105,87 @@ describe('login form behaviour', () => {
     expect(screen.getByLabelText(/Full name/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/Mobile number/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Create account/i })).toBeInTheDocument();
+  });
+
+  it('refuses an obviously malformed email before it ever reaches the server', async () => {
+    const user = userEvent.setup();
+    withRegion(<LoginPage />);
+    await user.click(screen.getByRole('button', { name: /Email & password/i }));
+    await user.type(screen.getByLabelText(/Email address/i), 'not-an-email');
+    await user.type(screen.getByLabelText(/^Password$/i), 'a passphrase');
+    expect(screen.getByText(/Enter a valid email address/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Sign in$/i })).toBeDisabled();
+  });
+
+  it('requires a real 8 characters to register, but not to sign in', async () => {
+    const user = userEvent.setup();
+    withRegion(<LoginPage />);
+    await user.click(screen.getByRole('button', { name: /Create an account/i }));
+    await user.type(screen.getByLabelText(/Full name/i), 'Debarati Sen');
+    await user.type(screen.getByLabelText(/Mobile number/i), '9830012345');
+    await user.type(screen.getByLabelText(/Email address/i), 'a@b.com');
+    await user.type(screen.getByLabelText(/^Password$/i), 'short');
+    expect(screen.getByRole('button', { name: /Create account/i })).toBeDisabled();
+    await user.type(screen.getByLabelText(/^Password$/i), 'er-phrase');
+    expect(screen.getByRole('button', { name: /Create account/i })).toBeEnabled();
+  });
+
+  it('will not let an empty name or a short phone number through at registration', async () => {
+    const user = userEvent.setup();
+    withRegion(<LoginPage />);
+    await user.click(screen.getByRole('button', { name: /Create an account/i }));
+    await user.type(screen.getByLabelText(/Email address/i), 'a@b.com');
+    await user.type(screen.getByLabelText(/^Password$/i), 'a passphrase');
+    const submit = screen.getByRole('button', { name: /Create account/i });
+    expect(submit).toBeDisabled();
+
+    await user.type(screen.getByLabelText(/Full name/i), 'Debarati Sen');
+    expect(submit).toBeDisabled();
+
+    await user.type(screen.getByLabelText(/Mobile number/i), '9830012345');
+    expect(submit).toBeEnabled();
+  });
+
+  it('can reveal the password rather than trusting a typo blind', async () => {
+    const user = userEvent.setup();
+    withRegion(<LoginPage />);
+    await user.click(screen.getByRole('button', { name: /Email & password/i }));
+    const pw = screen.getByLabelText(/^Password$/i);
+    expect(pw).toHaveAttribute('type', 'password');
+    await user.click(screen.getByRole('button', { name: /Show password/i }));
+    expect(pw).toHaveAttribute('type', 'text');
+    await user.click(screen.getByRole('button', { name: /Hide password/i }));
+    expect(pw).toHaveAttribute('type', 'password');
+  });
+
+  it('links a forgotten password to the real reset flow, not a dead end', async () => {
+    const user = userEvent.setup();
+    withRegion(<LoginPage />);
+    await user.click(screen.getByRole('button', { name: /Email & password/i }));
+    const link = screen.getByRole('link', { name: /Forgot your password/i });
+    expect(link).toHaveAttribute('href', '/forgot-password');
+  });
+
+  it('cannot be used to exhaust the OTP rate limit with repeated resends', async () => {
+    const user = userEvent.setup();
+    global.fetch = vi.fn(async () => json({ requestId: 'req_1', devOtp: '123456' })) as unknown as typeof fetch;
+    withRegion(<LoginPage />);
+    await user.type(screen.getByLabelText(/Mobile number/i), '9830012345');
+    await user.click(screen.getByRole('button', { name: /Send OTP/i }));
+
+    const resend = await screen.findByRole('button', { name: /Resend OTP/i });
+    expect(resend).toBeDisabled();
+    expect(resend).toHaveTextContent(/Resend OTP in \d+s/);
+  });
+
+  it('never submits the OTP form before every digit is entered', async () => {
+    const user = userEvent.setup();
+    global.fetch = vi.fn(async () => json({ requestId: 'req_1' })) as unknown as typeof fetch;
+    withRegion(<LoginPage />);
+    await user.type(screen.getByLabelText(/Mobile number/i), '9830012345');
+    await user.click(screen.getByRole('button', { name: /Send OTP/i }));
+
+    await waitFor(() => expect(screen.getAllByLabelText(/Digit \d of 6/i)).toHaveLength(6));
+    expect(screen.getByRole('button', { name: /Verify & continue/i })).toBeDisabled();
   });
 });

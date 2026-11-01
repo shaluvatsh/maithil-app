@@ -1,9 +1,10 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { sql, eq } from 'drizzle-orm';
+import { sql, eq, and } from 'drizzle-orm';
 import { makeHarness, daysFromNow, type Harness } from '../../../test/harness';
 import { ulid } from 'ulid';
 import {
-  bookings, ledgerEntries, outbox, availability, users, panditProfiles, panditRituals,
+  bookings, bookingEvents, ledgerEntries, outbox, availability, users, panditProfiles,
+  panditRituals,
 } from '../../../db/schema/index';
 import { DomainError } from '@themaithil/contracts';
 
@@ -20,7 +21,6 @@ const draft = (over: Record<string, unknown> = {}) => h.bookings.createDraft({
   paymentMode: 'cash',
   attendeeCount: 20,
   devoteeId: h.ids.devoteeId,
-  citySlug: 'kolkata',
   ...over,
 } as never);
 
@@ -97,6 +97,18 @@ describe('re-match when a purohit cancels', () => {
       panditId: backupId, ritualId: h.ids.ritualId, pricePaise: 150000, active: true,
     });
     await h.availability.materialise({ panditId: backupId, cityId: h.ids.cityId });
+    /*
+     * Declared working hours, because re-match judges a replacement the same way
+     * the devotee's time picker does — from `pandit_working_hours` (ADR 0013).
+     *
+     * Without this the fixture built a purohit who cannot exist after onboarding:
+     * verified, offering the ritual, with availability rows, and no declared hours.
+     * Such a purohit is already invisible in the time picker, so no devotee could
+     * ever have booked them in the first place; re-match offering them the work
+     * would have been the one path that did. `ensureWorkingHours` is exactly what
+     * the onboarding wizard calls, so this is what a real backup purohit looks like.
+     */
+    await h.availability.ensureWorkingHours({ panditId: backupId, cityId: h.ids.cityId });
     return backupId;
   };
 
@@ -432,6 +444,123 @@ describe('cancellation and refunds', () => {
   });
 });
 
+/**
+ * "Free rescheduling up to 24 hours before" has been on the membership plan
+ * since the catalogue was seeded (`db/seed/index.ts`), with no endpoint that
+ * could actually move a date - cancelling forfeited up to the full amount and
+ * a fresh booking had no guarantee of the same purohit or price.
+ */
+describe('reschedule', () => {
+  it('moves a confirmed booking to a new date and slot, keeping the purohit and price', async () => {
+    const b = await toConfirmed({ date: daysFromNow(10), slotIdx: 1 });
+    const res = await h.bookings.reschedule({
+      bookingId: b.id, devoteeId: h.ids.devoteeId, date: daysFromNow(15), slotIdx: 2,
+    });
+
+    expect(res.date).toBe(daysFromNow(15));
+    expect(res.slotIdx).toBe(2);
+
+    const row = (await h.db.select().from(bookings).where(eq(bookings.id, b.id)))[0]!;
+    expect(row.date).toBe(daysFromNow(15));
+    expect(row.slotIdx).toBe(2);
+    expect(row.panditId).toBe(h.ids.panditId);
+    expect(row.price).toEqual(b.price);
+    expect(row.state).toBe('confirmed');
+  });
+
+  it('releases the old slot and locks the new one', async () => {
+    const b = await toConfirmed({ date: daysFromNow(10), slotIdx: 1 });
+    await h.bookings.reschedule({
+      bookingId: b.id, devoteeId: h.ids.devoteeId, date: daysFromNow(15), slotIdx: 2,
+    });
+
+    const oldRow = await h.db.select().from(availability).where(and(
+      eq(availability.panditId, h.ids.panditId), eq(availability.date, daysFromNow(10)),
+      eq(availability.slotIdx, 1),
+    ));
+    expect(oldRow[0]!.status).toBe('open');
+    expect(oldRow[0]!.bookingId).toBeNull();
+
+    const newRow = await h.db.select().from(availability).where(and(
+      eq(availability.panditId, h.ids.panditId), eq(availability.date, daysFromNow(15)),
+      eq(availability.slotIdx, 2),
+    ));
+    expect(newRow[0]!.status).toBe('booked');
+    expect(newRow[0]!.bookingId).toBe(b.id);
+  });
+
+  it('records an audit event without changing state', async () => {
+    const b = await toConfirmed({ date: daysFromNow(10), slotIdx: 1 });
+    await h.bookings.reschedule({
+      bookingId: b.id, devoteeId: h.ids.devoteeId, date: daysFromNow(15), slotIdx: 2,
+    });
+
+    const events = await h.db.select().from(bookingEvents)
+      .where(eq(bookingEvents.bookingId, b.id));
+    const ev = events.find((e) => e.trigger === 'rescheduled');
+    expect(ev).toBeTruthy();
+    expect(ev!.fromState).toBe('confirmed');
+    expect(ev!.toState).toBe('confirmed');
+    expect(ev!.actorRole).toBe('devotee');
+    expect((ev!.meta as { previousDate: string }).previousDate).toBe(daysFromNow(10));
+  });
+
+  it('refuses to reschedule a booking that is not yet confirmed', async () => {
+    const d = await draft();
+    await h.bookings.submit(d.id, h.ids.devoteeId);   // pending_accept, not confirmed
+    await expect(h.bookings.reschedule({
+      bookingId: d.id, devoteeId: h.ids.devoteeId, date: daysFromNow(15), slotIdx: 2,
+    })).rejects.toThrow(/only a confirmed booking/);
+  });
+
+  it('refuses a slot the purohit does not actually have open', async () => {
+    const first = await toConfirmed({ date: daysFromNow(10), slotIdx: 1 });
+    // Someone else already holds this second booking's slot.
+    await toConfirmed({ date: daysFromNow(15), slotIdx: 2, devoteeId: h.ids.devoteeId });
+    await expect(h.bookings.reschedule({
+      bookingId: first.id, devoteeId: h.ids.devoteeId, date: daysFromNow(15), slotIdx: 2,
+    })).rejects.toThrow(DomainError);
+  });
+
+  it('refuses someone else\'s booking', async () => {
+    const b = await toConfirmed();
+    await expect(h.bookings.reschedule({
+      bookingId: b.id, devoteeId: 'not-the-devotee', date: daysFromNow(15), slotIdx: 2,
+    })).rejects.toThrow(/not your booking/);
+  });
+
+  it('refuses a date past the booking horizon', async () => {
+    const b = await toConfirmed();
+    await expect(h.bookings.reschedule({
+      bookingId: b.id, devoteeId: h.ids.devoteeId, date: daysFromNow(200), slotIdx: 1,
+    })).rejects.toThrow(/120 days/);
+  });
+
+  /**
+   * The 24-hour cutoff is measured against the CURRENT `slotStartAt`, not
+   * against `Date.now()` alone - so it has to be tested by moving the booking's
+   * own start time close, the same way a real booking approaches its slot.
+   */
+  it('refuses to reschedule inside the 24-hour window', async () => {
+    const b = await toConfirmed({ date: daysFromNow(10), slotIdx: 1 });
+    await h.db.update(bookings)
+      .set({ slotStartAt: new Date(Date.now() + 3 * 3_600_000).toISOString() })
+      .where(eq(bookings.id, b.id));
+
+    await expect(h.bookings.reschedule({
+      bookingId: b.id, devoteeId: h.ids.devoteeId, date: daysFromNow(15), slotIdx: 2,
+    })).rejects.toThrow(/24 hours/);
+  });
+
+  it('leaves the ledger balanced', async () => {
+    const b = await toConfirmed({ date: daysFromNow(10), slotIdx: 1 });
+    await h.bookings.reschedule({
+      bookingId: b.id, devoteeId: h.ids.devoteeId, date: daysFromNow(15), slotIdx: 2,
+    });
+    expect(await ledgerBalanced()).toBe(true);
+  });
+});
+
 describe('idempotency', () => {
   it('returns the first result on replay instead of settling twice', async () => {
     const b = await toConfirmed();
@@ -460,7 +589,7 @@ describe('idempotency', () => {
   });
 
   it('rejects the same key with a different body', async () => {
-    const b = await toConfirmed();
+    await toConfirmed();
     const key = 'idem-key-abcdef0123456789';
     await h.idempotency.run({
       key, userId: h.ids.panditId, endpoint: 'POST /complete',

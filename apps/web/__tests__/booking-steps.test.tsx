@@ -1,4 +1,4 @@
-import { setSearch } from './setup';
+import { setSearch, bookableTimes, TODAY } from './setup';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -34,7 +34,8 @@ function mockApi(opts: { pandits?: unknown[]; slowSearch?: boolean } = {}) {
     }
 
     const body =
-      url.includes('/v1/categories') ? []
+      url.includes('/v1/availability/times') ? bookableTimes(TODAY)
+      : url.includes('/v1/categories') ? []
       : url.includes('/v1/rituals') ? RITUALS
       : url.includes('/v1/panchang') ? []
       : [];
@@ -119,7 +120,7 @@ describe('the booking flow tells you what to do next', () => {
       expect(screen.queryByText('Ramesh Jha')).not.toBeInTheDocument();
     });
 
-  it('reports an empty slot beside the slots, not in a banner at the top of the page',
+  it('reports an empty time beside the times, not in a banner at the top of the page',
     async () => {
       mockApi({ pandits: [] });
       const strip = await toDateStep();
@@ -127,7 +128,7 @@ describe('the booking flow tells you what to do next', () => {
       await userEvent.click((await screen.findAllByRole('button', { pressed: false }))
         .find((b) => /am|pm/i.test(b.textContent ?? ''))!);
 
-      const msg = await screen.findByText(/no pandit is free in that slot/i);
+      const msg = await screen.findByText(/no pandit is free at that time/i);
       expect(msg).toBeInTheDocument();
       // And it offers a way forward.
       expect(screen.getByRole('button', { name: /pick another time/i })).toBeInTheDocument();

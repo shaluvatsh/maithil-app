@@ -12,8 +12,7 @@ const completed = async (slotIdx = 1) => {
     panditId: h.ids.panditId, ritualId: h.ids.ritualId, addressId: h.ids.addressId,
     date: daysFromNow(5 + slotIdx), slotIdx, samagriOption: 'pandit_brings',
     paymentMode: 'cash', attendeeCount: 10,
-    devoteeId: h.ids.devoteeId, citySlug: 'kolkata',
-  } as never);
+    devoteeId: h.ids.devoteeId,  } as never);
   await h.bookings.submit(d.id, h.ids.devoteeId);
   await h.bookings.accept(d.id, h.ids.panditId);
   const c = await h.bookings.confirmOnTokenCapture({ bookingId: d.id, paymentIntentId: `pi_${d.id}` });
@@ -105,8 +104,7 @@ describe('reviews', () => {
       panditId: h.ids.panditId, ritualId: h.ids.ritualId, addressId: h.ids.addressId,
       date: daysFromNow(9), slotIdx: 0, samagriOption: 'pandit_brings',
       paymentMode: 'cash', attendeeCount: 10,
-      devoteeId: h.ids.devoteeId, citySlug: 'kolkata',
-    } as never);
+      devoteeId: h.ids.devoteeId,    } as never);
     await expect(service.submit({
       bookingId: d.id, authorId: h.ids.devoteeId, panditStars: 5,
     })).rejects.toThrow(/once it has been completed/);

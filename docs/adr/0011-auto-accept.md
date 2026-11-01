@@ -24,7 +24,7 @@ mid-ritual. A purohit performing a four-hour biye cannot answer a phone. The win
 would expire routinely and the devotee would lose the slot **because the purohit was
 working** — the failure mode is worst for exactly the purohits we most want.
 
-**It made the core claim untrue.** COMPETITIVE-ANALYSIS.md establishes the wedge:
+**It made the core claim untrue.** The competitive wedge:
 nobody in the category sells an instantly confirmed, slot-locked booking; all five
 at-home competitors are "we will allocate someone within 24–48 hours". A two-hour
 acceptance window is a shorter version of the same limbo. The devotee still leaves the

@@ -9,8 +9,9 @@ import { bookings, bookingEvents, users, rituals, ritualTranslations, ledgerEntr
 import { CurrentUser, Roles } from '../auth/guards';
 import type { JwtClaims } from '../auth/auth.service';
 import { BookingService } from './booking.service';
-import { DomainError, ErrorCode } from '@themaithil/contracts';
-import { getRegion } from '@themaithil/region';
+import { GeocodeService } from './geocode.service';
+import { PayoutService } from '../payouts/payouts.service';
+import { DomainError, ErrorCode, PanjikaSchool } from '@themaithil/contracts';
 
 /**
  * `locale` is a Postgres enum, so an arbitrary `?locale=` string cannot reach the query.
@@ -34,14 +35,16 @@ const AddressInput = z.object({
 
 /**
  * `setPanjika` took `{ school }` unvalidated, so an arbitrary string reached a
- * Postgres enum column and 500'd instead of a clean 422 - and its TS annotation,
- * never enforced at runtime, had silently drifted from the schema: `panjika_school`
- * has THREE values (`bisuddha_siddhanta`, `gupta_press`, `mithila`), not two, so a
- * devotee wanting the Mithila panjika could not even express the request through
- * this endpoint's own type contract.
+ * Postgres enum column and 500'd instead of a clean 422.
+ *
+ * The first fix hand-wrote the three values it knew about, which then drifted a
+ * second time the moment the enum grew to six: a devotee in Bangalore or Tamil Nadu
+ * could not set `vikram_banaras`, `tamil_vakya` or `drik_generic` even though the
+ * contract, the pg enum and `packages/region` all accepted them. Deriving the schema
+ * from `PanjikaSchool` means there is no second list to keep in step.
  */
 const PanjikaInput = z.object({
-  school: z.enum(['bisuddha_siddhanta', 'gupta_press', 'mithila']).nullable(),
+  school: PanjikaSchool.nullable(),
 });
 
 const LOCALES = ['en', 'bn', 'hi'] as const;
@@ -55,6 +58,7 @@ export class BookingReadController {
   constructor(
     @Inject(DB) private readonly db: Db,
     @Inject(BookingService) private readonly bookingService: BookingService,
+    @Inject(GeocodeService) private readonly geocode: GeocodeService,
   ) {}
 
   /**
@@ -84,6 +88,7 @@ export class BookingReadController {
       cashCollectedPaise: bookings.cashCollectedPaise,
       devoteeId: bookings.devoteeId,
       panditId: bookings.panditId,
+      addressId: bookings.addressId,
       // Assigned at draft creation (ADR 0012), so this is never null by the
       // time a booking exists - the devotee is told who is coming, not left
       // reading a raw purohit id once they leave the confirmation screen.
@@ -93,6 +98,13 @@ export class BookingReadController {
         .as('ritual_name'),
       ritualSlug: rituals.slug,
       deliveryMode: rituals.deliveryMode,
+      /*
+       * How a REMOTE booking is actually delivered. Null on an at-home puja, which
+       * is most of them — the purohit is travelling to the family, so there is
+       * nothing to join and nothing to record.
+       */
+      joinUrl: bookings.joinUrl,
+      recordingUrl: bookings.recordingUrl,
       createdAt: bookings.createdAt,
       acceptDeadlineAt: bookings.acceptDeadlineAt,
     })
@@ -124,9 +136,40 @@ export class BookingReadController {
   }
 
   /** The devotee's saved venues. Needed before a booking can be drafted. */
+  /**
+   * Returns each address WITH ITS OWN CITY, which `select()` could not.
+   *
+   * `addresses` stores `city_id`, so a bare `select().from(addresses)` returned
+   * `cityId` and no `city` — while both consumers believed otherwise. The account
+   * page declared `city: string` on its row type and rendered `{a.city}`, which was
+   * `undefined` on every row: a saved address read "7 Lake Road, Gariahat ·  700029",
+   * with a separator and a gap where the city belonged. `/book` papered over the
+   * same hole with `{region.name.en}` — the city currently selected in the HEADER,
+   * not the city the address is in — so a devotee with a flat in Kolkata and
+   * parents in Delhi saw both labelled with whichever one they had picked, which is
+   * the exact failure the multi-city rule in CONTRIBUTING.md names ("never format a
+   * city's data with another city's rules").
+   *
+   * `citySlug` comes back too, because that is the key the rest of the product
+   * speaks: `getRegion(slug)` on the web side keys off it, so a caller that wants
+   * this address's money or slot format can get it right without a second lookup.
+   */
   @Get('me/addresses')
   async addresses(@CurrentUser() user: JwtClaims) {
-    return this.db.select().from(addresses)
+    return this.db.select({
+      id: addresses.id,
+      label: addresses.label,
+      line1: addresses.line1,
+      line2: addresses.line2,
+      pincode: addresses.pincode,
+      lat: addresses.lat,
+      lng: addresses.lng,
+      geoPrecision: addresses.geoPrecision,
+      city: cities.name,
+      citySlug: cities.slug,
+      createdAt: addresses.createdAt,
+    }).from(addresses)
+      .innerJoin(cities, eq(cities.id, addresses.cityId))
       .where(eq(addresses.userId, user.sub))
       .orderBy(desc(addresses.createdAt));
   }
@@ -142,14 +185,19 @@ export class BookingReadController {
   @Post('me/addresses')
   async addAddress(@CurrentUser() user: JwtClaims, @Body() body: unknown) {
     const input = AddressInput.parse(body);
-    const cityId = await this.catalogCityId(input.citySlug);
-    // Geocoding is a later concern; the comment here used to promise the city
-    // centroid but the code below it fell straight through to (0, 0) - every
-    // address created through the only path that creates one landed in the
-    // Atlantic, and proximity ranking (25% of search's score) was computed
-    // against it for every real user. `getRegion` has had the coordinate all
-    // along; this was never wired to it.
-    const centroid = getRegion(input.citySlug).coords;
+    const city = await this.catalogCity(input.citySlug);
+    /*
+     * Exact coordinate if the devotee shared one, else their pincode's centroid,
+     * else the city's - and the address records WHICH, because travel time is
+     * derived from this point (ADR 0013) and a city centroid makes the distance
+     * between two addresses exactly zero. See GeocodeService.
+     */
+    const point = await this.geocode.resolve({
+      citySlug: input.citySlug,
+      pincode: input.pincode,
+      lat: input.lat,
+      lng: input.lng,
+    });
 
     const row = (await this.db.insert(addresses).values({
       id: ulid(),
@@ -157,20 +205,38 @@ export class BookingReadController {
       label: input.label ?? 'Home',
       line1: input.line1,
       line2: input.line2 ?? null,
-      cityId,
+      cityId: city.id,
       pincode: input.pincode,
-      lat: input.lat ?? centroid.lat,
-      lng: input.lng ?? centroid.lng,
+      lat: point.lat,
+      lng: point.lng,
+      geoPrecision: point.precision,
     }).returning())[0]!;
 
-    return row;
+    /*
+     * Shaped like a row from the GET above, city name included.
+     *
+     * `returning()` gives back the TABLE, so this answered with `cityId` and no
+     * `city` — and both callers add the new row straight into the list they are
+     * already showing. The one address a devotee had just typed was therefore the
+     * one with no city against it, until a refetch replaced it. Returning the same
+     * shape means the optimistic row and the refetched row are identical.
+     */
+    const { cityId: _cityId, userId: _userId, ...rest } = row;
+    return { ...rest, city: city.name, citySlug: city.slug };
   }
 
-  private async catalogCityId(slug: string): Promise<string> {
-    const row = (await this.db.select({ id: cities.id }).from(cities)
-      .where(eq(cities.slug, slug)).limit(1))[0];
+  /**
+   * The city a slug names, or a clean 404.
+   *
+   * Returns the NAME as well as the id — one more column from a row already being
+   * read, and without it `addAddress` cannot answer in the same shape as
+   * `GET me/addresses` without a second round trip for a string it just looked up.
+   */
+  private async catalogCity(slug: string): Promise<{ id: string; name: string; slug: string }> {
+    const row = (await this.db.select({ id: cities.id, name: cities.name, slug: cities.slug })
+      .from(cities).where(eq(cities.slug, slug)).limit(1))[0];
     if (!row) throw new DomainError(ErrorCode.NOT_FOUND, `unknown city: ${slug}`);
-    return row.id;
+    return row;
   }
 
   @Get('bookings')
@@ -197,7 +263,7 @@ export class BookingReadController {
     }
     // Which side the caller reviews as, if any - an admin/ops viewer is neither.
     const authorRole = b.devoteeId === user.sub ? 'devotee' : b.panditId === user.sub ? 'pandit' : null;
-    const [timeline, profile, myReview] = await Promise.all([
+    const [timeline, profile, myReview, venue] = await Promise.all([
       this.db.select().from(bookingEvents)
         .where(eq(bookingEvents.bookingId, id)).orderBy(bookingEvents.at),
       this.db.select({
@@ -211,15 +277,52 @@ export class BookingReadController {
         ? this.db.select({ id: reviews.id }).from(reviews)
           .where(and(eq(reviews.bookingId, id), eq(reviews.author, authorRole))).limit(1)
         : Promise.resolve([]),
+      /*
+       * Where the purohit is actually going. The booking has carried an
+       * `addressId` since it was drafted and no read model ever returned it, so
+       * the one screen whose whole job is answering "what did I book" could not
+       * answer the most basic question a family asks the morning of a ceremony -
+       * and the purohit's own job card could not either.
+       */
+      // Null for a remote service, which genuinely has no venue - so this is
+      // "there is nowhere to go", not "we failed to look it up".
+      b.addressId
+        ? this.db.select({
+          label: addresses.label, line1: addresses.line1, line2: addresses.line2,
+          pincode: addresses.pincode, lat: addresses.lat, lng: addresses.lng,
+        }).from(addresses).where(eq(addresses.id, b.addressId)).limit(1)
+        : Promise.resolve([]),
     ]);
     // `state === 'reviewed'` is not "you reviewed it" - the 72-hour one-sided
     // publish (reviews.service.ts publishExpired) flips a booking to `reviewed`
     // off a single side's review, so the devotee's own submission can only be
     // known by checking whether their row actually exists.
-    return { ...b, timeline, panditProfile: profile[0] ?? null, myReviewSubmitted: myReview.length > 0 };
+    return {
+      ...b,
+      timeline,
+      panditProfile: profile[0] ?? null,
+      myReviewSubmitted: myReview.length > 0,
+      venue: venue[0] ?? null,
+    };
   }
 
-  /** Purohit job inbox: anything awaiting them or already on their calendar. */
+  /**
+   * Purohit job inbox: anything awaiting them or already on their calendar.
+   *
+   * UNBOUNDED, FOUND IN REVIEW. `completed` never leaves this filter and carried no
+   * limit and no date bound, so this grew with the purohit's entire career — a
+   * purohit two years in with a thousand finished pujas paid for all thousand rows
+   * on every visit to the one page the product itself calls daily use. Worse,
+   * plain ascending `slotStartAt` order put that entire history BEFORE any
+   * upcoming job, so a new request could be sorted below months of old completions
+   * instead of near the top where it is actionable.
+   *
+   * Fixed the same way `mine()` below already is — a cap — plus a priority tier so
+   * the cap, if it ever bites, discards old completions rather than truncating the
+   * handful of jobs that are actually awaiting this purohit right now. Active jobs
+   * sort soonest-first (what to do next); completed ones sort most-recent-first
+   * (the ones actually still worth seeing).
+   */
   @Roles('pandit')
   @Get('me/jobs')
   async jobs(@CurrentUser() user: JwtClaims) {
@@ -228,7 +331,11 @@ export class BookingReadController {
         eq(bookings.panditId, user.sub),
         inArray(bookings.state, ['pending_accept', 'confirmed', 'in_progress', 'completed']),
       ))
-      .orderBy(bookings.slotStartAt);
+      .orderBy(
+        sql`${bookings.state} = 'completed'`,
+        sql`CASE WHEN ${bookings.state} = 'completed' THEN -1 ELSE 1 END * extract(epoch from ${bookings.slotStartAt})`,
+      )
+      .limit(50);
   }
 
   /**
@@ -241,7 +348,7 @@ export class BookingReadController {
       throw new DomainError(ErrorCode.FORBIDDEN, 'not available in production');
     }
     return this.bookingService.confirmOnTokenCapture({
-      bookingId: id, paymentIntentId: `dev_${id}`, travelMinutes: 25,
+      bookingId: id, paymentIntentId: `dev_${id}`,
     });
   }
 
@@ -323,20 +430,58 @@ const AdminQuery = z.object({ state: z.string().optional() });
 @Controller('v1/admin')
 @Roles('admin', 'ops')
 export class AdminController {
-  constructor(@Inject(DB) private readonly db: Db) {}
+  constructor(
+    @Inject(DB) private readonly db: Db,
+    @Inject(PayoutService) private readonly payouts: PayoutService,
+  ) {}
+
+  /**
+   * Who has been paid and who has not.
+   *
+   * The `ledger` endpoint below returns raw double-entry rows. Those are the truth
+   * and they are the wrong shape for the one question ops actually asks about money
+   * — "is this purohit settled?" — which answering from them meant summing four
+   * entry types across two directions, per purohit, by hand.
+   *
+   * Payouts are run by hand from this console rather than on a schedule, which is a
+   * deliberate choice while volumes are small. That makes this screen the control
+   * surface for it: without a view of what is outstanding, running payouts manually
+   * means guessing who is due.
+   */
+  @Get('settlements')
+  settlements() {
+    return this.payouts.settlementOverview();
+  }
 
   @Get('bookings')
   async board(@Query() raw: unknown) {
     const q = AdminQuery.parse(raw);
+    /*
+     * The console selected `rituals.slug` and rendered it raw, so ops read
+     * "griha-prabesh" and "durga-puja-ghot" while every other surface — the
+     * devotee's bookings, the purohit's job list — showed "Griha Pravesh" and
+     * "Durga Puja (Kalash Sthapana, at home)". Staff had to hold a second set of
+     * names for the same rituals, and none of the catalogue's naming reached the
+     * one place people look when a devotee rings up about a booking.
+     *
+     * Same join and same coalesce as `base()` above, pinned to English: the
+     * console is an internal tool and does not follow the viewer's locale.
+     */
+    const english = alias(ritualTranslations, 'english_translation');
     const rows = await this.db.select({
       id: bookings.id, state: bookings.state, date: bookings.date,
       slotStartAt: bookings.slotStartAt, price: bookings.price,
       paymentMode: bookings.paymentMode, ritualSlug: rituals.slug,
+      ritualName: sql<string>`coalesce(${english.name}, ${rituals.slug})`.as('ritual_name'),
       devoteeName: sql<string>`dev.name`, devoteePhone: sql<string>`dev.phone`,
       panditPhone: sql<string>`pan.phone`, panditName: sql<string>`pan.name`,
     })
       .from(bookings)
       .innerJoin(rituals, eq(rituals.id, bookings.ritualId))
+      .leftJoin(english, and(
+        eq(english.ritualId, bookings.ritualId),
+        eq(english.locale, 'en'),
+      ))
       .innerJoin(sql`users AS dev`, sql`dev.id = ${bookings.devoteeId}`)
       .innerJoin(sql`users AS pan`, sql`pan.id = ${bookings.panditId}`)
       .where(q.state ? eq(bookings.state, q.state as never) : sql`true`)

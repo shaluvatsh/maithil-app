@@ -1,6 +1,6 @@
 import { eq, and, isNull, or, sql } from 'drizzle-orm';
 import type { Db } from '../../db/client';
-import { panditRituals, surgeRules, rituals } from '../../db/schema/index';
+import { panditRituals, surgeRules } from '../../db/schema/index';
 import type { CatalogService } from '../catalog/catalog.service';
 import {
   computePrice, paise, ZERO, DomainError, ErrorCode,
@@ -11,6 +11,14 @@ export class PricingService {
   constructor(
     private readonly db: Db,
     private readonly catalog: CatalogService,
+    /**
+     * Whether this deployment can charge anybody (`PAYMENTS_ENABLED`).
+     *
+     * Defaults TRUE so every existing construction keeps its behaviour and only a
+     * deployment that has said so runs cash-only. Passed down to `computePrice`,
+     * which zeroes the token — see the revenue note on `PriceInput`.
+     */
+    private readonly paymentsEnabled = true,
   ) {}
 
   /**
@@ -78,6 +86,7 @@ export class PricingService {
       samagriOption: args.samagriOption,
       paymentMode: args.paymentMode,
       promoDiscountPaise: args.promoDiscountPaise ? paise(args.promoDiscountPaise) : ZERO,
+      paymentsEnabled: this.paymentsEnabled,
     });
   }
 }

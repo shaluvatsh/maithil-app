@@ -1,6 +1,6 @@
 import {
   pgTable, text, integer, bigint, boolean, numeric, timestamp, jsonb,
-  primaryKey, index, uniqueIndex,
+  primaryKey, index,
 } from 'drizzle-orm/pg-core';
 import { cities, panditProfiles } from './identity';
 import { localeEnum } from './enums';
@@ -15,6 +15,16 @@ export const rituals = pgTable('rituals', {
   durationMin: integer('duration_min').notNull(),
   /** Contiguous 3h slots this occupies. Biye needs 2+. See ADR 0006. */
   defaultSlotSpan: integer('default_slot_span').notNull().default(1),
+  /**
+   * Consecutive days this ritual runs over. 1 for almost everything.
+   *
+   * A Durga Puja is four days and a full Chandi Paath can be nine: the same purohit,
+   * the same house, the same hour, on consecutive dates — each performed, and each
+   * able to go wrong on its own. `parent_booking_id` has existed since the first
+   * migration to express exactly that and nothing ever wrote it. See ADR 0006 and
+   * `BookingService.createDraft`.
+   */
+  days: integer('days').notNull().default(1),
   /** Whether muhurat matters. Tarpan is date-fixed; Satyanarayan is flexible. */
   isMuhuratSensitive: boolean('is_muhurat_sensitive').notNull().default(true),
   /** Browse taxonomy. Owned by packages/region — see categories.ts. */

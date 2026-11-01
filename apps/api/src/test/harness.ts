@@ -18,6 +18,11 @@ import { AvailabilityService } from '../modules/availability/availability.servic
 import { PricingService } from '../modules/booking/pricing.service';
 import { SearchService } from '../modules/search/search.service';
 import { BookingService } from '../modules/booking/booking.service';
+import { NotificationService } from '../modules/notifications/notifications.service';
+import { ConsoleChannel } from '../modules/notifications/channels';
+import { ConsoleEmailChannel } from '../modules/notifications/email-channel';
+import { PasswordResetService } from '../modules/auth/password-reset.service';
+import { InMemoryObjectStore } from '../modules/storage/object-store';
 import { IdempotencyService } from '../common/idempotency';
 import { KOLKATA_SLOT_DEFS } from '../db/seed/rituals.kolkata';
 
@@ -43,6 +48,7 @@ export interface Harness {
   ledger: LedgerService;
   outbox: OutboxService;
   idempotency: IdempotencyService;
+  notifications: ReturnType<typeof notifier>;
   ids: { cityId: string; ritualId: string; devoteeId: string; panditId: string; addressId: string };
 }
 
@@ -51,7 +57,17 @@ export interface Harness {
  * and real deferred triggers - so these tests exercise the same guards production
  * relies on, without Docker.
  */
-export async function makeHarness(opts: { dakshinaPaise?: number } = {}): Promise<Harness> {
+export async function makeHarness(
+  opts: {
+    dakshinaPaise?: number;
+    /**
+     * Build the harness as a cash-only deployment (`PAYMENTS_ENABLED=false`).
+     * Defaults true, so every existing suite is untouched.
+     */
+    paymentsEnabled?: boolean;
+  } = {},
+): Promise<Harness> {
+  const paymentsEnabled = opts.paymentsEnabled ?? true;
   const pg = await PGlite.create({ extensions: { btree_gist } });
   await pg.exec('CREATE EXTENSION IF NOT EXISTS btree_gist;');
   // Every migration, in filename order - the same set and order the production
@@ -122,23 +138,87 @@ export async function makeHarness(opts: { dakshinaPaise?: number } = {}): Promis
   const slots = new SlotService();
   const ledger = new LedgerService(db);
   const outbox = new OutboxService();
-  const pricing = new PricingService(db, catalog);
+  const pricing = new PricingService(db, catalog, paymentsEnabled);
   const otp = new BookingOtpService(TEST_CONFIG.JWT_ACCESS_SECRET);
   const search = new SearchService(db);
+  /*
+   * A real notifier over a recording channel, not a stub: `confirmOnTokenCapture`
+   * now sends the start and completion codes, and a test that silently swallowed
+   * them would not notice if it stopped.
+   */
+  const notifications = notifier(db);
+  await seedTemplates(db);
   const bookings = new BookingService(
     db, pricing, catalog, availability, slots, ledger, outbox, otp, kv,
     TEST_CONFIG.BOOKING_HORIZON_DAYS,
     { matchPandit: (a) => search.matchPandit(a as never) },
+    notifications,
+    new InMemoryObjectStore(),
     true,
+    paymentsEnabled,
   );
 
   await availability.materialise({ panditId, cityId });
 
   return {
-    db, pg, kv, bookings, catalog, availability, ledger, outbox,
+    db, pg, kv, bookings, catalog, availability, ledger, outbox, notifications,
     idempotency: new IdempotencyService(db),
     ids: { cityId, ritualId, devoteeId, panditId, addressId },
   };
+}
+
+/**
+ * A notifier that records instead of sending.
+ *
+ * `ConsoleChannel` already keeps everything it was handed, so a test can assert
+ * that a login code actually went out — which is the whole point, given that
+ * nothing sent one at all until now.
+ */
+export function notifier(db: Db) {
+  const channel = new ConsoleChannel();
+  const service = new NotificationService(db, channel);
+  return Object.assign(service, { channel });
+}
+
+/** Same reasoning as `notifier()` above, for the password-reset email. */
+export function mailer(): ConsoleEmailChannel {
+  return new ConsoleEmailChannel();
+}
+
+/** A `PasswordResetService` over the harness's own KV, with a fixed test secret. */
+export function resetService(kv: MemoryKv): PasswordResetService {
+  return new PasswordResetService(kv, 'test-secret-that-is-long-enough-32ch');
+}
+
+/**
+ * The templates a test needs to see a message come out the other end.
+ *
+ * `NotificationService` returns `failed` when no template matches, so without these
+ * a test asserting "the login code was sent" fails for a reason that has nothing to
+ * do with the code under test. Only the keys tests actually assert on — the real
+ * seed owns the full set.
+ */
+export async function seedTemplates(db: Db) {
+  const rows: Array<[string, string]> = [
+    ['auth.otp', 'TheMaithil login code: {{otp}}. Valid for {{minutes}} minutes.'],
+    ['booking.otp.start', 'Start code: {{otp}}.'],
+    ['booking.otp.complete', 'Completion code: {{otp}}. Cash due: {{amount}}.'],
+    ['pandit.kyc.verified', 'Your profile is verified — devotees can now book you.'],
+    ['pandit.kyc.changes_requested', 'We need one document again: {{reason}}.'],
+    ['pandit.kyc.rejected', 'We could not approve your profile. Reason: {{reason}}.'],
+    ['booking.reminder.t1', 'Tomorrow at {{slot}}: {{ritual}}. Purohit {{pandit}} is coming.'],
+    ['booking.anniversary', 'Last year you had {{ritual}} at home. The tithi comes round again soon.'],
+    ['booking.join_link.devotee', 'Your video link: {{link}}'],
+    ['booking.join_link.needed.pandit', '{{ritual}} on {{date}} {{slot}} is online — send your video link.'],
+    ['booking.join_link.chase.pandit', 'Reminder: {{ritual}} still has no video link.'],
+    ['booking.recording.devotee', 'Your recording is ready: {{link}}'],
+    ['booking.series.day.devotee', 'Day {{day}} of {{total}} for {{ritual}}. Start code: {{otp}}.'],
+  ];
+  for (const [key, body] of rows) {
+    await db.insert(schema.notificationTemplates).values({
+      id: ulid(), key, locale: 'bn', channel: 'whatsapp', body,
+    }).onConflictDoNothing();
+  }
 }
 
 export const daysFromNow = (n: number): string => {

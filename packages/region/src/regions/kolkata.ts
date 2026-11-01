@@ -41,6 +41,8 @@ export const kolkata: Region = {
     { idx: 3, start: '16:30', end: '19:30', labelKey: 'slot.evening' },
   ],
   travelGapMinutes: 30,
+  /** Dense old-city lanes, trams and a river with few crossings. */
+  avgSpeedKmph: 16,
 
   ritualSet: 'bengali',
   era: {

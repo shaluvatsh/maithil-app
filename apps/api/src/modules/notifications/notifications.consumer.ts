@@ -18,6 +18,19 @@ import { getRegion } from '@themaithil/region';
  */
 const CONSUMER = 'notifications';
 
+/**
+ * The reviewer's own words, or a fallback that still tells the purohit where to look.
+ *
+ * Never left blank: a message saying only "we need something from you" sends someone
+ * back to a screen with no idea which document to replace.
+ */
+function reasonOf(payload: unknown): string {
+  const notes = (payload as { notes?: unknown } | null)?.notes;
+  return typeof notes === 'string' && notes.trim().length > 0
+    ? notes.trim()
+    : 'open the app to see which document we need';
+}
+
 export class NotificationConsumer implements EventPublisher {
   private readonly log = new Logger('notify.consumer');
 
@@ -35,7 +48,7 @@ export class NotificationConsumer implements EventPublisher {
     if (!handler) return;
 
     try {
-      await handler(event.aggregateId);
+      await handler(event.aggregateId, event.payload);
     } catch (e) {
       this.log.error(
         `failed to notify for ${event.eventType} ${event.aggregateId}`,
@@ -54,7 +67,9 @@ export class NotificationConsumer implements EventPublisher {
     }
   }
 
-  private readonly handlers: Record<string, (bookingId: string) => Promise<void>> = {
+  private readonly handlers: Record<
+    string, (aggregateId: string, payload: unknown) => Promise<void>
+  > = {
     'booking.submitted': async (id) => {
       const b = await this.context(id);
       if (!b) return;
@@ -76,6 +91,25 @@ export class NotificationConsumer implements EventPublisher {
           date: b.date, slot: b.slotLabel,
         },
       });
+
+      /*
+       * A remote booking is not fulfilled until the purohit hands over a link, and
+       * nothing asked them for one.
+       *
+       * The devotee has paid in full for a ceremony delivered entirely over video;
+       * the join link IS the delivery. Leaving it to the purohit to notice a field
+       * on a dashboard they may not open makes the whole product depend on someone
+       * remembering — the same shape as every other "built but never wired" hole in
+       * this codebase. So they are asked, on WhatsApp, the moment the money lands.
+       */
+      if (b.deliveryMode === 'virtual') {
+        await this.notify.send({
+          userId: b.panditId, templateKey: 'booking.join_link.needed.pandit',
+          variables: {
+            ritual: b.ritualName(b.panditLocale), date: b.date, slot: b.slotLabel,
+          },
+        });
+      }
     },
     /**
      * A substitution the devotee did not ask for. They must hear it from us, on
@@ -113,13 +147,61 @@ export class NotificationConsumer implements EventPublisher {
         },
       });
     },
-    'booking.completed': async (id) => {
+    /*
+     * The verification outcome.
+     *
+     * Nothing told the purohit any of these. The decision was written to the database
+     * and no message left the building, so an approved purohit found out by opening
+     * an app they had no reason to reopen, and a rejected one might never find out at
+     * all — on the one screen only they can act on.
+     *
+     * Keyed off the purohit id rather than a booking, so these use `notifyPandit`
+     * instead of the booking `context()` above.
+     */
+    'pandit.kyc.verified': async (panditId) => {
+      await this.notify.send({
+        userId: panditId, templateKey: 'pandit.kyc.verified', variables: {},
+      });
+    },
+    'pandit.kyc.rejected': async (panditId, payload) => {
+      await this.notify.send({
+        userId: panditId, templateKey: 'pandit.kyc.rejected',
+        variables: { reason: reasonOf(payload) },
+      });
+    },
+    /*
+     * "Send that one again" — the common outcome, and the one that most needs to
+     * reach them, because the application stops until they act.
+     */
+    'pandit.kyc.changes_requested': async (panditId, payload) => {
+      await this.notify.send({
+        userId: panditId, templateKey: 'pandit.kyc.changes_requested',
+        variables: { reason: reasonOf(payload) },
+      });
+    },
+    'booking.completed': async (id, payload) => {
       const b = await this.context(id);
       if (!b) return;
       await this.notify.send({
         userId: b.panditId, templateKey: 'payout.completed',
         variables: { amount: b.panditAmount },
       });
+
+      /*
+       * The recording, for a puja nobody was in the room for.
+       *
+       * Only present on a remote booking, where it is the whole proof of
+       * performance — an at-home family watched the ceremony happen and does not
+       * need a video of it. Sent second and separately so a missing recording never
+       * costs the purohit their payout message.
+       */
+      const recordingUrl = (payload as { recordingUrl?: unknown } | null)?.recordingUrl;
+      if (typeof recordingUrl === 'string' && recordingUrl.length > 0) {
+        await this.notify.send({
+          userId: b.devoteeId, templateKey: 'booking.recording.devotee',
+          variables: { link: recordingUrl },
+        });
+      }
     },
   };
 
@@ -145,6 +227,7 @@ export class NotificationConsumer implements EventPublisher {
       price: bookings.price,
       ritualId: bookings.ritualId,
       ritualSlug: rituals.slug,
+      deliveryMode: rituals.deliveryMode,
       citySlug: cities.slug,
     })
       .from(bookings)
@@ -179,6 +262,8 @@ export class NotificationConsumer implements EventPublisher {
     return {
       devoteeId: b.devoteeId,
       panditId: b.panditId,
+      /** 'virtual' means the purohit owes the devotee a link before the day. */
+      deliveryMode: b.deliveryMode,
       date: b.date,
       slotLabel,
       ritualName,

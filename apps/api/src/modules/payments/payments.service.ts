@@ -25,10 +25,27 @@ export class PaymentsService {
     private readonly db: Db,
     private readonly gateway: PaymentGateway,
     private readonly bookings: BookingService,
+    /** Whether this deployment can charge anybody (`PAYMENTS_ENABLED`). */
+    private readonly paymentsEnabled = true,
   ) {}
 
   /** Creates the order the client hands to Razorpay Checkout. */
   async createTokenIntent(args: { bookingId: string; userId: string }) {
+    /*
+     * Refused outright when there is no gateway.
+     *
+     * In cash-only mode a booking is already `confirmed` by the time the devotee
+     * could reach a pay button, so the state check below would reject this anyway —
+     * but with a message about the booking rather than about the deployment. A
+     * client that still has a Pay button from a cached page deserves to be told
+     * which of the two is actually true.
+     */
+    if (!this.paymentsEnabled) {
+      throw new DomainError(
+        ErrorCode.FORBIDDEN,
+        'online payment is not available; this booking is settled in cash',
+      );
+    }
     const rows = await this.db.select().from(bookings)
       .where(eq(bookings.id, args.bookingId)).limit(1);
     const booking = rows[0];
@@ -58,6 +75,7 @@ export class PaymentsService {
         paymentIntentId: existing[0].id,
         orderId: existing[0].aggregatorOrderId,
         amountPaise: Number(existing[0].amountPaise),
+        keyId: this.gateway.checkoutKeyId(),
       };
     }
 
@@ -82,7 +100,18 @@ export class PaymentsService {
       idempotencyKey,
     });
 
-    return { paymentIntentId: id, orderId: order.id, amountPaise: price.tokenPaise };
+    /*
+     * `keyId` is what the browser needs to open Checkout, and it comes from the
+     * gateway that created this very order — so the money cannot land in a
+     * different merchant account than the one the order lives in. Null means there
+     * is no Checkout to open (the fake gateway, outside production).
+     */
+    return {
+      paymentIntentId: id,
+      orderId: order.id,
+      amountPaise: price.tokenPaise,
+      keyId: this.gateway.checkoutKeyId(),
+    };
   }
 
   /**
@@ -137,7 +166,17 @@ export class PaymentsService {
           lastError: e instanceof Error ? e.message : String(e),
         })
         .where(eq(webhookEvents.id, rowId));
-      throw e;
+      /*
+       * Recorded, not rethrown. This class's own contract (see the docstring above)
+       * is 200 once the event is claimed - this used to `throw e` here, which the
+       * global exception filter turns into a real non-2xx (409 for the slot-conflict
+       * case below, but really anything dispatch() can throw), directly contradicting
+       * that contract and making Razorpay retry an event that will fail identically
+       * every time forever. `webhook_events.last_error` is the actual recovery path:
+       * an operator replays it once the cause is fixed. See the strict concurrency
+       * review, finding #3.
+       */
+      return { status: 'failed' as const, event: payload.event };
     }
   }
 
@@ -180,13 +219,38 @@ export class PaymentsService {
       }).where(eq(paymentIntents.id, intent.id));
 
       if (intent.kind === 'token' && intent.bookingId) {
-        // Idempotent by design: a replayed capture finds the booking already
-        // confirmed and returns without touching the slot or the ledger.
-        await this.bookings.confirmOnTokenCapture({
-          bookingId: intent.bookingId,
-          paymentIntentId: intent.id,
-          travelMinutes: 25,
-        });
+        try {
+          // Idempotent by design: a replayed capture finds the booking already
+          // confirmed and returns without touching the slot or the ledger.
+          await this.bookings.confirmOnTokenCapture({
+            bookingId: intent.bookingId,
+            paymentIntentId: intent.id,
+          });
+        } catch (e) {
+          /*
+           * SLOT_UNAVAILABLE here means a concurrent booking won the purohit's
+           * slot between this devotee's draft and this capture - the one real
+           * double-booking race the platform accepts (see the Redis hold's own
+           * comment in slots.ts). It is deterministic, not transient: retrying
+           * confirmOnTokenCapture will fail identically forever, and by the time
+           * this webhook fires the money is already captured on Razorpay's side.
+           * Leaving it there with nothing but a log line is a devotee charged for
+           * a booking that will never happen. Refund immediately instead - this
+           * IS the resolution, not a fallback pending a human. See the strict
+           * concurrency review, finding #2.
+           */
+          if (e instanceof DomainError && e.code === ErrorCode.SLOT_UNAVAILABLE && payment.id) {
+            await this.gateway.refund({
+              paymentId: payment.id,
+              amountPaise: Number(intent.amountPaise),
+              idempotencyKey: `auto-refund:${intent.id}`,
+            });
+            await this.db.update(paymentIntents).set({ status: 'refunded' })
+              .where(eq(paymentIntents.id, intent.id));
+            return true;
+          }
+          throw e;
+        }
       }
       return true;
     }

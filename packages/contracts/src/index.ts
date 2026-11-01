@@ -10,3 +10,6 @@ export * from './schemas/panchang.js';
 export * from './schemas/booking.js';
 export * from './schemas/search.js';
 export * from './schemas/availability.js';
+export * from './schemas/community.js';
+export * from './schemas/events.js';
+export * from './schemas/knowledge.js';

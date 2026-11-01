@@ -1,6 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { eq } from 'drizzle-orm';
-import { makeHarness, TEST_CONFIG, type Harness } from '../../../test/harness';
+import {
+  makeHarness, notifier, mailer, resetService, TEST_CONFIG, type Harness,
+} from '../../../test/harness';
 import { users } from '../../../db/schema/index';
 import { MemoryKv } from '../../../common/kv';
 import { OtpService } from '../otp.service';
@@ -14,7 +16,10 @@ const REG = { name: 'Debarati Sen', email: 'Debarati@Example.com', phone: '98300
 
 beforeEach(async () => {
   h = await makeHarness();
-  auth = new AuthService(h.db, new OtpService(new MemoryKv(), 'otp-secret', true), TEST_CONFIG);
+  auth = new AuthService(
+    h.db, new OtpService(new MemoryKv(), 'otp-secret', true), TEST_CONFIG, notifier(h.db),
+    resetService(h.kv), mailer(),
+  );
 }, 60_000);
 afterEach(async () => { await h?.pg.close(); });
 
@@ -92,16 +97,71 @@ describe('register and login', () => {
     await expect(auth.register({ ...REG, password: 'short' })).rejects.toThrow(/at least 8/);
   });
 
-  it('ATTACHES a password to an existing OTP-only account instead of duplicating', async () => {
+  /**
+   * This test used to assert the opposite — that registering with an existing
+   * OTP-only account's phone silently attached the submitted password to it and
+   * returned that account's tokens. Nothing in the request proved the caller owned
+   * the number, so it was an account-takeover endpoint: anyone who knew a devotee's
+   * phone could claim their bookings and addresses.
+   */
+  it('refuses to attach a password to an existing account without proof of ownership', async () => {
     const otp = await auth.requestOtp('9830012345');
-    const first = await auth.verifyOtp({ requestId: otp.requestId, phone: '9830012345', otp: '123456' });
+    const victim = await auth.verifyOtp({
+      requestId: otp.requestId, phone: '9830012345', otp: '123456',
+    });
 
-    const res = await auth.register(REG);
-    expect(res.user.id).toBe(first.user.id);
+    await expect(auth.register({ ...REG, phone: '9830012345', email: 'attacker@example.com' }))
+      .rejects.toThrow(/already exists/);
 
+    // Untouched: no password attached, and the attacker's email did not land on it.
     const all = await h.db.select().from(users).where(eq(users.phone, '+919830012345'));
     expect(all).toHaveLength(1);
-    expect(all[0]!.passwordHash).toBeTruthy();
+    expect(all[0]!.id).toBe(victim.user.id);
+    expect(all[0]!.passwordHash).toBeNull();
+    expect(all[0]!.email).not.toBe('attacker@example.com');
+  });
+
+  /**
+   * The legitimate half of what registration used to do, now behind a token — which
+   * can only be held by someone who passed an OTP challenge on this very number.
+   */
+  it('lets an OTP-only account add a password once it holds a token', async () => {
+    const otp = await auth.requestOtp('9830012345');
+    const session = await auth.verifyOtp({
+      requestId: otp.requestId, phone: '9830012345', otp: '123456',
+    });
+
+    await auth.setPassword({ userId: session.user.id, password: 'correct horse battery' });
+
+    await auth.register({ ...REG, phone: '9830099999', email: 'someone@example.com' });
+    const rows = await h.db.select().from(users).where(eq(users.phone, '+919830012345'));
+    expect(rows[0]!.passwordHash).toBeTruthy();
+  });
+
+  it('requires the current password before replacing an existing one', async () => {
+    const res = await auth.register(REG);
+
+    await expect(auth.setPassword({ userId: res.user.id, password: 'a new long password' }))
+      .rejects.toThrow(/current password/i);
+
+    await expect(auth.setPassword({
+      userId: res.user.id, password: 'a new long password', currentPassword: 'not it',
+    })).rejects.toThrow(/current password/i);
+
+    await auth.setPassword({
+      userId: res.user.id, password: 'a new long password', currentPassword: REG.password,
+    });
+    const after = await auth.loginWithPassword({
+      email: REG.email, password: 'a new long password',
+    });
+    expect(after.user.id).toBe(res.user.id);
+  });
+
+  it('will not set a weak password', async () => {
+    const res = await auth.register(REG);
+    await expect(auth.setPassword({
+      userId: res.user.id, password: 'short', currentPassword: REG.password,
+    })).rejects.toThrow();
   });
 
   it('lets the same person use either door', async () => {

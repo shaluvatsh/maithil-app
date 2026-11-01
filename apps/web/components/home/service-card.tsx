@@ -33,6 +33,14 @@ export interface ServiceCardProps {
    * is a Home & New Beginnings ritual, and it is the same orange as that tile.
    */
   tint?: string;
+  /**
+   * A real photo for the card header, in place of the emoji tile. Sourced per
+   * category (`categoryImageFor`) rather than per ritual - there is no photo
+   * shoot behind this catalogue yet, so every ritual in, say, Festival Pujas
+   * currently shows the same representative photo. Honest about what it is:
+   * "the kind of thing this is," not "a picture of this specific booking."
+   */
+  image?: string | undefined;
   /** Warm by default; `cool` is the blue treatment used by online services. */
   tone?: 'warm' | 'cool';
   badges?: Array<{ text: string; kind: string; side?: 'l' | 'r' }>;
@@ -48,7 +56,7 @@ export interface ServiceCardProps {
 }
 
 export function ServiceCard({
-  service: s, price, emoji, tone = 'warm', tint,
+  service: s, price, emoji, tone = 'warm', tint, image,
   badges = [], chips = [], rating, features = [], meta = [], day,
 }: ServiceCardProps) {
   const cool = tone === 'cool';
@@ -56,18 +64,33 @@ export function ServiceCard({
 
   return (
     <div className="svc-card">
-      <div className={`svc-top${cool ? ' cool' : ''}`}>
-        {badges.map((b) => (
-          <span key={b.text} className={`badge ${b.side ?? 'r'} ${b.kind}`}>{b.text}</span>
-        ))}
-        <div className="emoji" style={tint ? { background: tint } : undefined}>{emoji}</div>
-        {rating && (
-          <div className="rating">
-            ⭐ {rating.stars.toFixed(1)}{' '}
-            <span className="rev">· {rating.reviews} review{rating.reviews === 1 ? '' : 's'}</span>
-          </div>
-        )}
-      </div>
+      {image ? (
+        <div className="svc-photo">
+          <img src={image} alt={s.name} loading="lazy" />
+          {badges.map((b) => (
+            <span key={b.text} className={`badge ${b.side ?? 'r'} ${b.kind}`}>{b.text}</span>
+          ))}
+          {rating && (
+            <div className="rating on-photo">
+              ⭐ {rating.stars.toFixed(1)}{' '}
+              <span className="rev">· {rating.reviews} review{rating.reviews === 1 ? '' : 's'}</span>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className={`svc-top${cool ? ' cool' : ''}`}>
+          {badges.map((b) => (
+            <span key={b.text} className={`badge ${b.side ?? 'r'} ${b.kind}`}>{b.text}</span>
+          ))}
+          <div className="emoji" style={tint ? { background: tint } : undefined}>{emoji}</div>
+          {rating && (
+            <div className="rating">
+              ⭐ {rating.stars.toFixed(1)}{' '}
+              <span className="rev">· {rating.reviews} review{rating.reviews === 1 ? '' : 's'}</span>
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="svc-body">
         {chips.length > 0 && (

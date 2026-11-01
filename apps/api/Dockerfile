@@ -1,6 +1,6 @@
 # Built and run from the repo root (`docker build -f apps/api/Dockerfile .`) because
 # apps/api depends on two workspace packages by source — see the "Workspace packages"
-# note in CLAUDE.md. A Dockerfile scoped to apps/api alone cannot see them.
+# note in CONTRIBUTING.md. A Dockerfile scoped to apps/api alone cannot see them.
 
 FROM node:22-alpine AS base
 RUN corepack enable

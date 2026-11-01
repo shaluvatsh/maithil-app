@@ -5,7 +5,8 @@ import { useEffect, useRef, useState } from 'react';
 import { api, auth } from '@/lib/api';
 import { useRegion } from '@/lib/region-context';
 import { CityPicker } from '@/components/city-picker';
-import { navFor, roleOf, type Role } from '@/lib/nav-model';
+import { navFor, roleOf } from '@/lib/nav-model';
+import { useRole } from '@/lib/use-role';
 import { whatsappLink } from '@/lib/contact';
 
 /** States where the booking has not happened yet, so it still needs the user's attention. */
@@ -21,18 +22,34 @@ export function Nav() {
   const [live, setLive] = useState(0);
   /**
    * Starts as `guest` on both server and client, then settles once the token has
-   * been read. Reading `auth` during render would produce different markup on the
-   * server than in the browser — a hydration mismatch — so the header opens as the
-   * public one and adjusts.
+   * been read — see `useRole`, which the footer and support float share, so the
+   * header cannot end up with a different idea of who is signed in than they do.
    */
-  const [role, setRole] = useState<Role>('guest');
+  const role = useRole();
+
+  /**
+   * Whether this purohit is approved, which decides where "My practice" lives.
+   *
+   * Asked rather than stored: `kyc_status` changes when an operator approves them,
+   * long after they signed in, so a value cached at login would be stale for exactly
+   * the purohit it matters most to. Only purohits are asked, and only once per
+   * navigation — the same budget the booking badge below already spends.
+   */
+  const [kyc, setKyc] = useState<string | null>(null);
+  useEffect(() => {
+    if (role !== 'pandit' || !auth.token) { setKyc(null); return; }
+    api<{ kycStatus: string }>('/v1/me/purohit/profile')
+      .then((p) => setKyc(p.kycStatus))
+      // Unknown is treated as unapproved, which keeps the one link that makes them
+      // bookable in the main bar. Failing the other way would hide it.
+      .catch(() => setKyc(null));
+  }, [role, path]);
 
   const acctRef = useRef<HTMLDivElement>(null);
-  const nav = navFor(role);
+  const nav = navFor(role, kyc);
 
   useEffect(() => {
     setWho(auth.name);
-    setRole(roleOf(Boolean(auth.token), auth.role));
     setMenu(false); setAcct(false);
   }, [path]);
 
@@ -87,7 +104,11 @@ export function Nav() {
                    aria-hidden="true">
                 <path d="M12 2a7 7 0 0 0-7 7c0 5.25 7 13 7 13s7-7.75 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6a2.5 2.5 0 0 1 0 5.5z" />
               </svg>
-              {chosen ? region.name.en : 'Select your city'}
+              {/* Wrapped so it can be truncated on a narrow screen without the
+                  pin and the chevron being dragged along with it. */}
+              <span className="city-name">
+                {chosen ? region.name.en : 'Select your city'}
+              </span>
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                    strokeWidth="3" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
             </button>

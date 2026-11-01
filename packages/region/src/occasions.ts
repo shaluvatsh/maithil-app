@@ -38,7 +38,14 @@ export interface Occasion {
   label: string;
   /** One line so the card is self-explanatory without being tapped. */
   blurb: string;
-  emoji: string;
+  /**
+   * Reuses the matching category's own tile photo (a different variant where two
+   * occasions land on the same category, e.g. `new-home` and `new-work` both being
+   * "home and new beginnings") rather than a photo of its own - occasions and
+   * categories answer different questions, but there is no reason for a devotee to
+   * learn two different visual languages for the same underlying catalogue.
+   */
+  photo: string;
   order: number;
   /**
    * Answers "do I need all of these?" — the question a family always has and
@@ -53,10 +60,10 @@ export const OCCASIONS: readonly Occasion[] = [
     id: 'new-home',
     label: 'We are moving into a new home',
     blurb: 'Entering a new house or flat',
-    emoji: '🏠',
+    photo: '/images/categories/home-and-new-beginnings-1.jpg',
     order: 1,
     guidance:
-      'Most families do Griha Prabesh on the day they enter. Bastu Puja is separate '
+      'Most families do Griha Pravesh on the day they enter. Vastu Puja is separate '
       + 'and addresses the building itself — worth adding if the house is new-built '
       + 'or has been empty. Satyanarayan is often done a few days later as thanks, '
       + 'not on the same day.',
@@ -73,7 +80,7 @@ export const OCCASIONS: readonly Occasion[] = [
     id: 'new-baby',
     label: 'We have had a baby',
     blurb: 'Naming, first rice, first ceremonies',
-    emoji: '👶',
+    photo: '/images/categories/life-ceremonies-1.jpg',
     order: 2,
     guidance:
       'Namkaran comes first, usually in the first weeks. Annaprashan is separate and '
@@ -83,14 +90,14 @@ export const OCCASIONS: readonly Occasion[] = [
       { slug: 'namkaran', weight: 'core',
         does: 'Naming ceremony, in the first weeks after birth.' },
       { slug: 'annaprashan', weight: 'core',
-        does: 'Mukhe bhaat — the first rice, at around six months.' },
+        does: 'The first rice, at around six months.' },
     ],
   },
   {
     id: 'ancestors',
     label: 'Remembering someone who has passed',
     blurb: 'Shraddha, tarpan and annual observance',
-    emoji: '🪷',
+    photo: '/images/categories/ancestral-rites-1.jpg',
     order: 3,
     guidance:
       'Shraddha is performed at home with pind daan. Tarpan is a shorter water rite, '
@@ -107,26 +114,26 @@ export const OCCASIONS: readonly Occasion[] = [
     id: 'new-work',
     label: 'Starting something new at work',
     blurb: 'A new shop, office, vehicle or ledger',
-    emoji: '📈',
+    photo: '/images/categories/home-and-new-beginnings-2.jpg',
     order: 4,
     guidance:
-      'Halkhata is the Poila Boishakh ledger puja and is date-fixed. For a new shop '
-      + 'or office opening on any day, Lakshmi Puja is the usual choice. Bishwakarma '
-      + 'is for tools, machinery and vehicles.',
+      'The new ledger puja is tied to the Bengali new year (Poila Boishakh) and is '
+      + 'date-fixed. For a new shop or office opening on any other day, Lakshmi Puja '
+      + 'is the usual choice. Vishwakarma is for tools, machinery and vehicles.',
     rituals: [
       { slug: 'lakshmi-puja', weight: 'core',
         does: 'Prosperity for a new venture, premises or ledger.' },
       { slug: 'bishwakarma-puja', weight: 'often-with',
         does: 'For tools, machines and vehicles.' },
       { slug: 'halkhata', weight: 'optional',
-        does: 'The new account book, on Poila Boishakh.' },
+        does: 'The new account book, blessed on the Bengali new year.' },
     ],
   },
   {
     id: 'peace-and-remedy',
     label: 'Something is not going well',
     blurb: 'Health, obstacles, or an astrologer has suggested a remedy',
-    emoji: '🪐',
+    photo: '/images/categories/peace-and-remedies-1.jpg',
     order: 5,
     guidance:
       'If an astrologer named a specific graha, Nabagraha Shanti is the one. '
@@ -144,8 +151,8 @@ export const OCCASIONS: readonly Occasion[] = [
   {
     id: 'coming-of-age',
     label: 'A thread ceremony or a wedding',
-    blurb: 'Upanayan and Biye',
-    emoji: '💍',
+    blurb: 'Upanayan and wedding ceremonies',
+    photo: '/images/categories/life-ceremonies-2.jpg',
     order: 6,
     guidance:
       'Both run for several hours and need booking well ahead — the date is usually '
@@ -155,25 +162,25 @@ export const OCCASIONS: readonly Occasion[] = [
       { slug: 'upanayan', weight: 'core',
         does: 'Sacred thread ceremony. Half a day, with homa.' },
       { slug: 'biye', weight: 'core',
-        does: 'Full Bengali wedding vidhi. Several hours; book well in advance.' },
+        does: 'Full Hindu wedding vidhi. Several hours; book well in advance.' },
     ],
   },
   {
     id: 'festival',
     label: 'It is a festival',
     blurb: 'Durga, Kali, Lakshmi, Saraswati and the rest of the year',
-    emoji: '🪔',
+    photo: '/images/categories/festival-pujas-1.jpg',
     order: 7,
     guidance:
       'Festival dates are fixed by the panchang, so availability goes quickly — '
       + 'Durga Puja and Kali Puja purohits are usually booked weeks ahead.',
     rituals: [
       { slug: 'durga-puja-ghot', weight: 'core',
-        does: 'Ghot sthapan at home, across the four days of the pujo.' },
+        does: 'Kalash sthapana at home, across the four days of the puja.' },
       { slug: 'kali-puja', weight: 'core',
         does: 'Performed at home on Amavasya night, so the slot runs late.' },
       { slug: 'lakshmi-puja', weight: 'core',
-        does: 'Kojagari Lakshmi, on the full moon after Durga Puja.' },
+        does: 'Lakshmi Puja on Sharad Purnima, the full moon after Durga Puja.' },
       { slug: 'saraswati-puja', weight: 'core',
         does: 'Vasant Panchami, with hatekhori for children starting to write.' },
       { slug: 'ganesh-puja', weight: 'often-with',
@@ -186,7 +193,7 @@ export const OCCASIONS: readonly Occasion[] = [
     id: 'online',
     label: 'I cannot be there in person',
     blurb: 'Join by video, from anywhere',
-    emoji: '💻',
+    photo: '/images/categories/online-services-1.jpg',
     order: 8,
     guidance:
       'No purohit travels and there is nothing to arrange at your end. Useful if you '

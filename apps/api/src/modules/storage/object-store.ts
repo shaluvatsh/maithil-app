@@ -75,6 +75,57 @@ export function documentKey(args: {
   return `kyc/${args.panditId}/${args.kind}-${randomUUID()}.${EXT[args.contentType]}`;
 }
 
+/**
+ * The purohit's public profile photo.
+ *
+ * A separate prefix from `kyc/` on purpose. KYC images are purged thirty days after a
+ * decision; this one is permanent and public, and keeping them in one namespace is
+ * how a purge sweep written later deletes every purohit's face.
+ */
+export function profilePhotoKey(args: {
+  panditId: string; contentType: AllowedDocType;
+}): string {
+  return `profile/${args.panditId}/photo-${randomUUID()}.${EXT[args.contentType]}`;
+}
+
+/**
+ * What a knowledge recording may be.
+ *
+ * A SEPARATE list from `ALLOWED_DOC_TYPES`, and a short one. The content type is part
+ * of the presigned signature — see `presignUpload` — so this list is what actually
+ * stops the library becoming a general file host. The note there applies with more
+ * force here than on a KYC upload, because knowledge media is PUBLIC: a store that
+ * will serve attacker-controlled HTML from a trusted origin is a stored-XSS hole,
+ * and a public prefix is the version of that hole anyone can reach.
+ *
+ * Three formats, chosen for what a purohit's phone actually records: mp3 and m4a from
+ * a voice recorder, mp4 for video. No wav (a 30-second chant is 5MB uncompressed) and
+ * no ogg (Safari will not play it).
+ */
+export const ALLOWED_MEDIA_TYPES = ['audio/mpeg', 'audio/mp4', 'video/mp4'] as const;
+export type AllowedMediaType = (typeof ALLOWED_MEDIA_TYPES)[number];
+
+export const isAllowedMediaType = (v: string): v is AllowedMediaType =>
+  (ALLOWED_MEDIA_TYPES as readonly string[]).includes(v);
+
+const MEDIA_EXT: Record<AllowedMediaType, string> = {
+  'audio/mpeg': 'mp3', 'audio/mp4': 'm4a', 'video/mp4': 'mp4',
+};
+
+/**
+ * Where a knowledge recording lives.
+ *
+ * Its own prefix, for the reason `profile/` has one: `kyc/` is purged thirty days
+ * after a decision, and a published mantra recording must outlive that sweep. A
+ * random component because a key should not be guessable from an author id even
+ * though reads are signed — the unguessable key is the second lock.
+ */
+export function knowledgeMediaKey(args: {
+  authorId: string; contentType: AllowedMediaType;
+}): string {
+  return `knowledge/${args.authorId}/media-${randomUUID()}.${MEDIA_EXT[args.contentType]}`;
+}
+
 const sha256Hex = (s: string) => createHash('sha256').update(s).digest('hex');
 const hmac = (key: Buffer | string, data: string) =>
   createHmac('sha256', key).update(data).digest();
@@ -195,23 +246,53 @@ const contentTypeSigned = (method: string, contentType?: string) =>
  * a fake that returns a plausible-looking R2 URL invites someone to believe an
  * upload succeeded in an environment where nothing is stored.
  */
+/**
+ * The development store, when there is no bucket to talk to.
+ *
+ * It used to hand out `memory://upload/...`. A browser cannot PUT to that — `fetch`
+ * REJECTS on an unknown scheme rather than returning a failed response, so the
+ * client's `if (!put.ok && !url.startsWith('memory://'))` escape hatch was
+ * unreachable and every upload died on "Failed to fetch". Document upload therefore
+ * could not work in local development at all, and once verification began requiring
+ * four documents, neither could purohit onboarding.
+ *
+ * So the URLs are real HTTP now, served by a dev-only controller against this same
+ * instance. That keeps the two-step flow honest — sign, PUT the bytes, then attach —
+ * and it means an admin reviewing an application can actually open the document,
+ * which a scheme the browser refuses could never do.
+ */
 export class InMemoryObjectStore implements ObjectStore {
-  readonly uploads = new Map<string, { contentType: string }>();
+  readonly uploads = new Map<string, { contentType: string; body?: Uint8Array }>();
   readonly deleted: string[] = [];
+
+  /**
+   * Where this process answers. Uploads must go somewhere a browser can reach, and
+   * only the process knows its own address.
+   */
+  constructor(private readonly baseUrl = 'http://localhost:3000') {}
 
   async presignUpload(args: {
     key: string; contentType: string; expiresInSeconds?: number;
   }): Promise<PresignedUpload> {
     this.uploads.set(args.key, { contentType: args.contentType });
     return {
-      url: `memory://upload/${encodeURIComponent(args.key)}`,
+      url: `${this.baseUrl}/v1/dev/uploads/${encodeURIComponent(args.key)}`,
       key: args.key,
       expiresInSeconds: args.expiresInSeconds ?? 600,
     };
   }
 
   async presignDownload(args: { key: string }): Promise<string> {
-    return `memory://download/${encodeURIComponent(args.key)}`;
+    return `${this.baseUrl}/v1/dev/uploads/${encodeURIComponent(args.key)}`;
+  }
+
+  /** Called by the dev upload endpoint once the bytes actually arrive. */
+  put(key: string, contentType: string, body: Uint8Array): void {
+    this.uploads.set(key, { contentType, body });
+  }
+
+  get(key: string): { contentType: string; body?: Uint8Array } | undefined {
+    return this.uploads.get(key);
   }
 
   async delete(key: string): Promise<void> {

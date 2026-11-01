@@ -34,3 +34,29 @@ export const EMAIL = process.env.NEXT_PUBLIC_SUPPORT_EMAIL ?? 'help@themaithil.c
  */
 export const whatsappLink = (message?: string): string =>
   `https://wa.me/${WHATSAPP}${message ? `?text=${encodeURIComponent(message)}` : ''}`;
+
+/**
+ * The Grievance Officer, named because the IT Rules 2021 require a name.
+ *
+ * The moment a third party can publish here, this product is an intermediary, and
+ * the obligations attach: a named officer, a published contact route, 24 hours to
+ * acknowledge and 15 days to resolve (ADR 0016). "Contact support" does not satisfy
+ * the requirement — the rule asks for a person.
+ *
+ * Environment-overridable for the same reason the support number is: the officer is
+ * a real individual who will change, and changing them must not require a release.
+ * The defaults are deliberately obvious placeholders rather than a plausible-looking
+ * fake, because a page that names a person who does not hold the role is worse than
+ * one that is visibly unconfigured.
+ */
+export const GRIEVANCE = {
+  name: process.env.NEXT_PUBLIC_GRIEVANCE_NAME ?? 'Not yet appointed',
+  email: process.env.NEXT_PUBLIC_GRIEVANCE_EMAIL ?? EMAIL,
+  /** Hours to acknowledge. Mirrors COMMUNITY_GRIEVANCE_ACK_HOURS on the API. */
+  ackHours: Number(process.env.NEXT_PUBLIC_GRIEVANCE_ACK_HOURS ?? 24),
+  /** Days to resolve. Mirrors COMMUNITY_GRIEVANCE_RESOLVE_DAYS on the API. */
+  resolveDays: Number(process.env.NEXT_PUBLIC_GRIEVANCE_RESOLVE_DAYS ?? 15),
+} as const;
+
+/** True once a real person has been named, so the page can say so plainly. */
+export const grievanceOfficerAppointed = GRIEVANCE.name !== 'Not yet appointed';

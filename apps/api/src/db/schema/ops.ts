@@ -1,5 +1,5 @@
 import {
-  pgTable, text, integer, bigint, timestamp, jsonb, boolean, date,
+  pgTable, text, integer, bigint, timestamp, jsonb, boolean,
   index, uniqueIndex, primaryKey,
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
@@ -25,10 +25,26 @@ export const outbox = pgTable('outbox', {
   attempts: integer('attempts').notNull().default(0),
   lastError: text('last_error'),
   publishedAt: ts('published_at'),
+  /**
+   * A lease, not a lock. The relay used to hold one Postgres transaction (and its
+   * pooled connection) open across the WHOLE batch's publish calls so a row's lock
+   * would block a second instance from claiming it too - correct, but it meant up to
+   * 100 sequential, awaited external HTTP calls (the WhatsApp send) ran with a
+   * connection checked out of the same small pool every other request shares. A slow
+   * BSP response stalled that connection, and everything else on the instance
+   * competing for the pool, for as long as the batch took.
+   *
+   * `claimedAt` lets the claim be a single fast UPDATE that commits immediately,
+   * releasing the connection before a single publish() call happens. A second
+   * instance skips a freshly-claimed row without waiting on a lock; a row whose
+   * claimant crashed mid-batch becomes reclaimable again once CLAIM_VISIBILITY_MS
+   * has passed, rather than being held forever by a lock nobody will ever release.
+   */
+  claimedAt: ts('claimed_at'),
   createdAt: created(),
 }, (t) => ({
-  /** The relay's hot path: unpublished, oldest first, SKIP LOCKED. */
-  unpublished: index('outbox_unpublished').on(t.publishedAt, t.id),
+  /** The relay's hot path: unclaimed-or-stale, unpublished, oldest first. */
+  unpublished: index('outbox_unpublished').on(t.publishedAt, t.claimedAt, t.id),
   aggregate: index('outbox_aggregate').on(t.aggregateType, t.aggregateId),
 }));
 
@@ -146,7 +162,12 @@ export const notificationTemplates = pgTable('notification_templates', {
 
 export const notifications = pgTable('notifications', {
   id: id(),
-  userId: text('user_id').notNull().references(() => users.id),
+  /**
+   * Null for a message sent to a phone that has no account — a login OTP, which is
+   * delivered before the account exists. Every other notification is about a
+   * booking, and a booking always has two known parties.
+   */
+  userId: text('user_id').references(() => users.id),
   templateKey: text('template_key').notNull(),
   channel: text('channel').notNull(),
   payload: jsonb('payload').notNull(),
@@ -158,4 +179,75 @@ export const notifications = pgTable('notifications', {
   createdAt: created(),
 }, (t) => ({
   userIdx: index('notifications_user_idx').on(t.userId, t.createdAt),
+}));
+
+/**
+ * One anniversary reminder per household, per ritual, per year.
+ *
+ * The primary key IS the deduplication. `AnniversaryJob` inserts here BEFORE it
+ * sends, so a retry after a crash mid-batch cannot produce a second message — the
+ * conflict is what tells the job it has already nudged this household. Doing it the
+ * other way round (send, then record) drops a duplicate on every family whenever the
+ * process dies between the two.
+ *
+ * Rows are kept rather than expired: they are the record of what we sent, and a
+ * household that lapses and returns three years later should not be re-nudged for
+ * the years they were away.
+ */
+export const anniversaryNudges = pgTable('anniversary_nudges', {
+  devoteeId: text('devotee_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  ritualId: text('ritual_id').notNull(),
+  /** Calendar year (IST) the reminder was sent for, not the year of the puja. */
+  year: integer('year').notNull(),
+  // Spelled out rather than using the `created()` helper, which names its column
+  // `created_at` — the migration creates `sent_at`, and the mismatch made every
+  // insert fail on a column that does not exist.
+  sentAt: ts('sent_at').notNull().defaultNow(),
+}, (t) => ({
+  pk: primaryKey({ columns: [t.devoteeId, t.ritualId, t.year] }),
+}));
+
+/**
+ * WHY A PUROHIT GOT, OR DID NOT GET, A BOOKING.
+ *
+ * ADR 0012 ended with a requirement that was never built: *"Matching is now
+ * load-bearing. It was a sort order over a list the user could override; it is now
+ * the allocation of work and income. A bug in the weights is a bug in someone's
+ * livelihood. The weights need to be observable — log the chosen purohit and the
+ * runner-up per booking."*
+ *
+ * Without this row there is no way to answer either of the two questions that matter.
+ * Ours: are the weights doing what we think, or is one purohit quietly taking
+ * everything again? Theirs: why has my work dried up? A purohit whose income halved
+ * deserves better than "the algorithm", and an allocation nobody can reconstruct is
+ * an allocation nobody can defend.
+ *
+ * `weights` is snapshotted alongside the scores. They are constants today, but an
+ * allocation from last month explained with this month's weights is a wrong
+ * explanation — and being able to explain is the only reason this table exists.
+ *
+ * Append-only by intent and written best-effort: `matchPandit` swallows a failure
+ * here, because a booking that happened and was not logged is a gap in a diary,
+ * while a booking that did not happen because the diary was full is an outage.
+ */
+export const matchDecisions = pgTable('match_decisions', {
+  id: id(),
+  bookingId: text('booking_id').notNull().references(() => bookings.id),
+  ritualId: text('ritual_id').notNull(),
+  /** Null when nobody was available — itself a fact worth being able to count. */
+  chosenPanditId: text('chosen_pandit_id').references(() => users.id),
+  /** Numeric as text: the score is for reading and comparing, never for arithmetic. */
+  chosenScore: text('chosen_score'),
+  weights: jsonb('weights').notNull(),
+  /**
+   * The top candidates with their score components — including whoever had already
+   * declined, flagged, so a purohit who lost work to their own answer is not told
+   * they were outranked.
+   */
+  candidates: jsonb('candidates').notNull(),
+  at: created(),
+}, (t) => ({
+  bookingIdx: index('match_decisions_booking_idx').on(t.bookingId),
+  /** The purohit-facing query: my allocations, newest first. */
+  chosenIdx: index('match_decisions_chosen_idx').on(t.chosenPanditId, t.at),
 }));

@@ -82,3 +82,22 @@ if (!global.matchMedia) {
 if (!Element.prototype.scrollIntoView) {
   Element.prototype.scrollIntoView = () => {};
 }
+
+/**
+ * The day's start times, as `/v1/availability/times` returns them.
+ *
+ * The devotee picks a time now, not one of four fixed slots (ADR 0013), so every
+ * suite that walks past the date step needs this endpoint mocked or the picker
+ * renders empty and the flow stalls there.
+ */
+export const TODAY = new Date(Date.now() + 5.5 * 3600_000).toISOString().slice(0, 10);
+
+export const bookableTimes = (date: string = TODAY) => ({
+  stepMinutes: 30,
+  times: [
+    { startsAt: `${date}T09:00:00+05:30`, endsAt: `${date}T11:00:00+05:30`,
+      available: true, purohitCount: 2 },
+    { startsAt: `${date}T10:30:00+05:30`, endsAt: `${date}T12:30:00+05:30`,
+      available: true, purohitCount: 1 },
+  ],
+});

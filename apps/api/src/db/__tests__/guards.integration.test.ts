@@ -168,9 +168,26 @@ describe('database guards', () => {
     [id, slotIdx, span],
   );
 
-  it('refuses a slot span that runs past the end of the day', async () => {
-    await expect(booking('B_OVER', 3, 2)).rejects.toThrow(/booking_slot_span_valid/);
-    await booking('B_OK', 2, 2);   // slots 2..3 is fine
+  /*
+   * This used to assert that `slot_idx + slot_span <= 4` — and it was testing
+   * Kolkata's four-slot day, not a property of bookings. That ceiling refused
+   * evening bookings outright in the five-slot southern cities, and it made a
+   * ritual running most of a day (a full Chandi Paath, a Mahamrityunjay jaap)
+   * bookable only at dawn. Migration A0001 replaced it with a bound on the span
+   * alone; the overlap guarantee moved to `bookings_pandit_no_overlap` in 0018,
+   * an exclusion constraint over the real interval, which does not care how a
+   * city divides its day.
+   */
+  it('allows a long ritual to start late in the day', async () => {
+    // slot 3 + span 2 was refused outright before; it is now an ordinary booking.
+    await booking('B_LATE', 3, 2);
+    await booking('B_OK', 2, 2);
+  });
+
+  it('still refuses a span that is not a real length', async () => {
+    await expect(booking('B_ZERO', 0, 0)).rejects.toThrow(/booking_slot_span_valid/);
+    // Longer than any city's whole day is a bug, not a long puja.
+    await expect(booking('B_HUGE', 0, 9)).rejects.toThrow(/booking_slot_span_valid/);
   });
 
   it('refuses a completed cash booking with no recorded cash amount', async () => {

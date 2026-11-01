@@ -60,3 +60,26 @@ export function CategoryCardSkeletons({ count }: { count: number }) {
     </>
   );
 }
+
+/**
+ * A stack of card-shaped rows — the purohit's job inbox and the admin console's
+ * tables, both of which used to pop in from nothing.
+ *
+ * Neither surface had any placeholder at all: skeletons were built for the home
+ * page and the devotee flow and never reached the other two personas, so staff
+ * and supply got a blank panel while their fetch resolved and no signal that
+ * anything was happening. Deliberately generic — a row is a row on both.
+ */
+export function RowSkeletons({ count, height = 64 }: { count: number; height?: number }) {
+  return (
+    <>
+      {KEYS(count).map((i) => (
+        <div className="sk-row" key={i} aria-hidden style={{ height }}>
+          <div className="sk sk-line" style={{ width: '32%' }} />
+          <div className="sk sk-line" style={{ width: '18%' }} />
+          <div className="sk sk-line" style={{ width: '22%' }} />
+        </div>
+      ))}
+    </>
+  );
+}

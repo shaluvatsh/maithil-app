@@ -1,4 +1,4 @@
-import { eq, and, sql } from 'drizzle-orm';
+import { sql } from 'drizzle-orm';
 import type { Db } from '../../db/client';
 import { users, panditProfiles, rituals, cities } from '../../db/schema/index';
 

@@ -1,7 +1,7 @@
 import { ulid } from 'ulid';
-import { eq, and, sql, isNull, lt, inArray } from 'drizzle-orm';
+import { eq, and, sql, isNull, lt } from 'drizzle-orm';
 import type { Db } from '../../db/client';
-import { reviews, bookings, panditProfiles, users } from '../../db/schema/index';
+import { reviews, bookings, panditProfiles } from '../../db/schema/index';
 import { DomainError, ErrorCode } from '@themaithil/contracts';
 
 const PUBLISH_AFTER_HOURS = 72;

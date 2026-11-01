@@ -64,8 +64,43 @@ describe('application bootstrap', () => {
     expect(res.body[0].name).toMatch(/[ঀ-৿]/);   // Bengali script
   });
 
-  it('requires a token on protected routes', async () => {
-    await request(app.getHttpServer()).get('/v1/bookings').expect(403);
+  /**
+   * 401, not 403 — and the difference is not cosmetic.
+   *
+   * This asserted 403, which is what the guard used to return for both "you are not
+   * signed in" and "you are signed in and this is not yours". The web client refreshes
+   * on 401, so an access token that lapsed after its fifteen minutes produced a 403
+   * that nothing recovered from: the thirty-day refresh token was never used and the
+   * only way out was to sign out and back in. See `session-expiry.test.ts`.
+   */
+  it('answers 401 on a protected route with no token, so a client can refresh', async () => {
+    await request(app.getHttpServer()).get('/v1/bookings').expect(401);
+  });
+
+  /**
+   * The four PUBLIC routes that personalise must serve a signed-out visitor.
+   *
+   * THE BUG THIS PINS, found by driving the real app and not by reading it. Each was
+   * written as `@CurrentUser() user: JwtClaims | undefined` — which typechecks, reads
+   * correctly, and is wrong, because `CurrentUser` THROWS when nobody is signed in.
+   * So every one of them answered `FORBIDDEN: not authenticated` to exactly the
+   * visitors the community and events surfaces exist to attract. No unit test caught
+   * it: none of them went through the parameter decorator. This one goes over HTTP,
+   * which is the only place the mistake was visible.
+   */
+  it.each([
+    '/v1/community/feed',
+    '/v1/events',
+  ])('serves %s to a signed-out visitor', async (path) => {
+    const res = await request(app.getHttpServer()).get(path).expect(200);
+    expect(res.body).toHaveProperty('items');
+  });
+
+  it('answers 401 for a token it cannot verify, rather than 403', async () => {
+    await request(app.getHttpServer())
+      .get('/v1/bookings')
+      .set('authorization', 'Bearer not-a-real-token')
+      .expect(401);
   });
 
   it('runs the whole OTP login over HTTP', async () => {
@@ -115,6 +150,30 @@ describe('application bootstrap', () => {
     const first = res.body.results[0];
     expect(first).toHaveProperty('pricePaise');
     expect(first).toHaveProperty('isNewPandit');
+  });
+
+  /**
+   * `slotIdx` was validated with a flat `.max(3)` — Kolkata's four-slot day, applied
+   * to every city. The southern cities run five slots (`SOUTH_SLOTS`), so their
+   * 18:00-20:30 window was rejected by validation before the request reached the
+   * service: unbookable through search, for a reason no error message explained.
+   * The bound is the city's, so it is checked after `citySlug` is known.
+   */
+  it('bounds slotIdx by the city, not by the launch city', async () => {
+    const rituals = await request(app.getHttpServer()).get('/v1/rituals').expect(200);
+    const ritualId = rituals.body[0].id;
+
+    // Bengaluru has five slots: idx 4 is real and must survive validation.
+    const fiveSlot = await request(app.getHttpServer())
+      .get(`/v1/search/pandits?ritualId=${ritualId}&citySlug=bengaluru&slotIdx=4`);
+    expect(fiveSlot.status, fiveSlot.text).toBe(200);
+
+    // Kolkata has four: idx 4 does not exist there and must still be refused.
+    const fourSlot = await request(app.getHttpServer())
+      .get(`/v1/search/pandits?ritualId=${ritualId}&citySlug=kolkata&slotIdx=4`);
+    expect(fourSlot.status).toBe(422);
+    expect(fourSlot.body.error.code).toBe('VALIDATION_FAILED');
+    expect(fourSlot.body.error.issues[0].path).toBe('slotIdx');
   });
 });
 
@@ -215,8 +274,7 @@ describe('the booking detail view has what the account page needs', () => {
       panditId: h.ids.panditId, ritualId: h.ids.ritualId, addressId: h.ids.addressId,
       date: daysFromNow(10),
       slotIdx: 2, samagriOption: 'pandit_brings', paymentMode: 'cash',
-      attendeeCount: 10, devoteeId: h.ids.devoteeId, citySlug: 'kolkata',
-    } as never);
+      attendeeCount: 10, devoteeId: h.ids.devoteeId,    } as never);
     await h.bookings.submit(d.id, h.ids.devoteeId);
 
     const res = await request(app.getHttpServer())
@@ -252,8 +310,7 @@ describe('the booking detail view has what the account page needs', () => {
       panditId: h.ids.panditId, ritualId: h.ids.ritualId, addressId: h.ids.addressId,
       date: daysFromNow(12),
       slotIdx: 1, samagriOption: 'pandit_brings', paymentMode: 'cash',
-      attendeeCount: 10, devoteeId: h.ids.devoteeId, citySlug: 'kolkata',
-    } as never);
+      attendeeCount: 10, devoteeId: h.ids.devoteeId,    } as never);
     await h.bookings.submit(d.id, h.ids.devoteeId);
     await h.bookings.accept(d.id, h.ids.panditId);
     const c = await h.bookings.confirmOnTokenCapture({
@@ -295,8 +352,7 @@ describe('the booking detail view has what the account page needs', () => {
       panditId: h.ids.panditId, ritualId: h.ids.ritualId, addressId: h.ids.addressId,
       date: daysFromNow(11),
       slotIdx: 3, samagriOption: 'pandit_brings', paymentMode: 'cash',
-      attendeeCount: 10, devoteeId: h.ids.devoteeId, citySlug: 'kolkata',
-    } as never);
+      attendeeCount: 10, devoteeId: h.ids.devoteeId,    } as never);
 
     const res = await request(app.getHttpServer())
       .get(`/v1/bookings/${d.id}`)

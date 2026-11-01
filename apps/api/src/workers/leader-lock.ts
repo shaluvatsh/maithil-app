@@ -31,8 +31,23 @@ export class PgAdvisoryLock implements LeaderLock {
 
   async tryAcquire(): Promise<boolean> {
     const conn = await this.db.$client.reserve();
-    const rows = await conn`select pg_try_advisory_lock(${this.key}) as locked`;
-    const locked = Boolean((rows as unknown as Array<{ locked: boolean }>)[0]?.locked);
+    /*
+     * `conn.release()` used to sit only on the two outcomes of a successful query -
+     * a lock this instance did not get, or one it did. A transient failure on the
+     * query itself (a statement timeout, a dropped connection) skipped both and
+     * left this reserved connection permanently outside the pool: `main.ts` calls
+     * `runOnce()` once at boot and every six hours for the process's whole
+     * lifetime, so each occurrence quietly shrank an already-small ten-connection
+     * pool shared with every request the API serves.
+     */
+    let locked: boolean;
+    try {
+      const rows = await conn`select pg_try_advisory_lock(${this.key}) as locked`;
+      locked = Boolean((rows as unknown as Array<{ locked: boolean }>)[0]?.locked);
+    } catch (e) {
+      conn.release();
+      throw e;
+    }
     if (!locked) {
       conn.release();
       return false;

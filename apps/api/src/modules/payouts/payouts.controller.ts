@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Inject } from '@nestjs/common';
+import { Controller, Get, Post, Inject } from '@nestjs/common';
 import { PayoutService } from './payouts.service';
 import { CurrentUser, Roles } from '../auth/guards';
 import type { JwtClaims } from '../auth/auth.service';

@@ -63,3 +63,65 @@ export const panditWeeklyPatterns = pgTable('pandit_weekly_patterns', {
 }, (t) => ({
   pk: primaryKey({ columns: [t.panditId, t.weekday, t.slotIdx] }),
 }));
+
+/**
+ * Working hours as time windows. Replaces the slot-based `panditWeeklyPatterns`
+ * under ADR 0013 — both exist until allocation moves across.
+ *
+ * Several rows per weekday are allowed, so a split day (mornings and evenings, not
+ * the afternoon) is two rows rather than a special case.
+ *
+ * CROSSING MIDNIGHT: `endsAt <= startsAt` means the window runs into the next day,
+ * the convention shift rosters use. A purohit taking the midnight Kali Puja works
+ * 22:00–03:00, which is one row here — and is not expressible at all in the
+ * slot-based table, whose day stops at 19:30.
+ */
+export const panditWorkingHours = pgTable('pandit_working_hours', {
+  panditId: text('pandit_id').notNull()
+    .references(() => panditProfiles.userId, { onDelete: 'cascade' }),
+  /** 0 = Sunday, matching JS `getDay()` and Postgres `EXTRACT(DOW)`. */
+  weekday: integer('weekday').notNull(),
+  startsAt: time('starts_at').notNull(),
+  endsAt: time('ends_at').notNull(),
+  updatedAt: ts('updated_at').notNull().defaultNow(),
+}, (t) => ({
+  pk: primaryKey({ columns: [t.panditId, t.weekday, t.startsAt] }),
+}));
+
+/**
+ * A whole day stated differently from the usual week: a festival, or a day off.
+ *
+ * Durga Puja is not a busy Tuesday. Hours extend (04:00–01:00), and a purohit
+ * performing at six homes in one para needs a lower travel floor than the one that
+ * is right when the next job is across the city. Both are properties of a DATE.
+ *
+ * Any row here replaces the weekly pattern for that date entirely — an override is
+ * a statement about the whole day, not an addition to it.
+ */
+export const panditDateOverrides = pgTable('pandit_date_overrides', {
+  panditId: text('pandit_id').notNull()
+    .references(() => panditProfiles.userId, { onDelete: 'cascade' }),
+  date: date('date').notNull(),
+  /** False is a day off: the override exists, and it says "not working". */
+  isAvailable: boolean('is_available').notNull().default(true),
+  /**
+   * Null uses the region's default. Lowered for a festival round where the homes
+   * are minutes apart — the distance estimate handles itself; only the floor needs
+   * the purohit's own knowledge of their para.
+   */
+  travelFloorMinutes: integer('travel_floor_minutes'),
+  note: text('note'),
+  updatedAt: ts('updated_at').notNull().defaultNow(),
+}, (t) => ({
+  pk: primaryKey({ columns: [t.panditId, t.date] }),
+}));
+
+/** The windows for an overridden date. Absent when `isAvailable` is false. */
+export const panditDateWindows = pgTable('pandit_date_windows', {
+  panditId: text('pandit_id').notNull(),
+  date: date('date').notNull(),
+  startsAt: time('starts_at').notNull(),
+  endsAt: time('ends_at').notNull(),
+}, (t) => ({
+  pk: primaryKey({ columns: [t.panditId, t.date, t.startsAt] }),
+}));

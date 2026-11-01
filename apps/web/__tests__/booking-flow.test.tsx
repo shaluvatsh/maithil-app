@@ -1,4 +1,4 @@
-import { setSearch } from './setup';
+import { setSearch, bookableTimes, TODAY } from './setup';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -26,7 +26,8 @@ function mockApi() {
       url.includes('/v1/categories') ? CATEGORIES
       : url.includes('/v1/rituals') ? RITUALS
       : url.includes('/v1/panchang') ? []
-      : url.includes('/v1/search/pandits') ? { results: [] }
+      : url.includes('/v1/availability/times') ? bookableTimes()
+      : url.includes('/v1/search/pandits') ? { results: [{ id: 'p1', name: 'Sri Test' }] }
       : [];
     return new Response(JSON.stringify(body), {
       status: 200, headers: { 'content-type': 'application/json' },
@@ -150,6 +151,7 @@ describe('booking flow, signed in — create, pay, confirm', () => {
       // A panjika already on file, so the flow is not interrupted by the prompt.
       if (url.includes('/v1/auth/me')) return json({ panjikaSchool: 'gupta_press' });
       if (url.includes('/v1/me/addresses')) return json([ADDRESS]);
+      if (url.includes('/v1/availability/times')) return json(bookableTimes());
       if (url.includes('/v1/categories')) return json(CATEGORIES);
       if (url.includes('/v1/rituals')) return json(RITUALS);
       if (url.includes('/v1/panchang')) return json([]);
@@ -183,8 +185,9 @@ describe('booking flow, signed in — create, pay, confirm', () => {
     const dateGroup = await screen.findByRole('group', { name: /Choose a date/i });
     await user.click(within(dateGroup).getAllByRole('button')[0]!);
 
-    const slotgrid = await waitFor(() => document.querySelector('.slotgrid') as HTMLElement);
-    await user.click(within(slotgrid).getAllByRole('button')[0]!);
+    // The four fixed slots are gone; the devotee picks a time (ADR 0013).
+    const timegrid = await waitFor(() => document.querySelector('.timegrid') as HTMLElement);
+    await user.click(within(timegrid).getAllByRole('button')[0]!);
 
     // The search resolved with a match, and the options card is now on screen.
     // Two matches: the desktop options card AND the always-rendered mobile sticky
@@ -202,5 +205,99 @@ describe('booking flow, signed in — create, pay, confirm', () => {
     await screen.findByText(/confirmed\. your booking is set/i);
     const viewBookings = await screen.findByRole('link', { name: /view your bookings/i });
     expect(viewBookings).toHaveAttribute('href', '/account');
+  });
+});
+
+/**
+ * Signing in MID-BOOKING, and coming back to what you had.
+ *
+ * This hand-off is the one place in the flow where a devotee is deliberately sent
+ * away, so "resumes exactly where they left off" is a promise rather than a nicety.
+ * It was broken by the ADR 0013 migration and nothing noticed, because the failure
+ * is silent in three separate places at once.
+ *
+ * `book()` writes `startsAt` into `themaithil.pending`. The resume effect read
+ * `p.slotIdx` — a field that payload has not carried since the flow stopped using
+ * slot indices. So `slotIdx` was `undefined`, the search URL carried the literal
+ * string "undefined", `z.coerce.number()` made it `NaN`, `.int()` rejected it, and
+ * the resulting 422 was swallowed by `.catch(() => {})`.
+ *
+ * The devotee chose a ritual, a date and a time, signed in, came back — and found
+ * the time blank and no purohits, at the exact moment they had decided to buy.
+ */
+describe('resuming a booking after signing in', () => {
+  const PENDING = {
+    ritualId: 'r1',
+    date: TODAY,
+    startsAt: `${TODAY}T09:00:00+05:30`,
+    samagri: 'pandit_brings' as const,
+    payment: 'cash' as const,
+  };
+
+  it('restores the chosen time, not just the ritual and date', async () => {
+    auth.set('test-access-token', 'devotee', 'Om');
+    sessionStorage.setItem('themaithil.pending', JSON.stringify(PENDING));
+    open();
+
+    // The purohit step only renders once a time is restored; before the fix the
+    // flow stalled on the date step with the time unset.
+    expect(await screen.findByText(/pandits? (is|are) free at this time/i))
+      .toBeInTheDocument();
+  });
+
+  it('asks the server for the saved window, never a slot index', async () => {
+    auth.set('test-access-token', 'devotee', 'Om');
+    sessionStorage.setItem('themaithil.pending', JSON.stringify(PENDING));
+    open();
+    await screen.findByText(/pandits? (is|are) free at this time/i);
+
+    const calls = (global.fetch as unknown as { mock: { calls: unknown[][] } }).mock.calls;
+    const search = calls.map((c) => String(c[0]))
+      .find((u) => u.includes('/v1/search/pandits'));
+
+    expect(search).toBeTruthy();
+    expect(search).toContain('startsAt=');
+    expect(search).toContain('endsAt=');
+    // The exact shape of the old bug, which a `.catch(() => {})` hid completely.
+    expect(search).not.toContain('slotIdx');
+    expect(search).not.toContain('undefined');
+  });
+
+  /**
+   * The window can be taken by someone else while they are signing in — which is
+   * precisely the gap this path opens. Better to say so here than to let them press
+   * Review and book and meet `createBooking`'s refusal.
+   */
+  it('says so plainly when the saved time was taken during sign-in', async () => {
+    auth.set('test-access-token', 'devotee', 'Om');
+    sessionStorage.setItem('themaithil.pending', JSON.stringify(PENDING));
+    global.fetch = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      const body =
+        url.includes('/v1/categories') ? CATEGORIES
+        : url.includes('/v1/rituals') ? RITUALS
+        : url.includes('/v1/panchang') ? []
+        : url.includes('/v1/availability/times') ? bookableTimes()
+        : url.includes('/v1/search/pandits') ? { results: [] }
+        : [];
+      return new Response(JSON.stringify(body), {
+        status: 200, headers: { 'content-type': 'application/json' },
+      });
+    }) as unknown as typeof fetch;
+    open();
+
+    expect(await screen.findByText(/taken while you were signing in/i)).toBeInTheDocument();
+  });
+
+  /** A tab left open across a deploy carries the older payload; it must not throw. */
+  it('still restores what it can from a payload with no saved time', async () => {
+    auth.set('test-access-token', 'devotee', 'Om');
+    const { startsAt: _omitted, ...legacy } = PENDING;
+    sessionStorage.setItem('themaithil.pending', JSON.stringify(legacy));
+    open();
+
+    // The ritual is restored, so the flow continues from the date step rather than
+    // resetting to the catalogue.
+    expect(await screen.findByRole('group', { name: /Choose a date/i })).toBeInTheDocument();
   });
 });

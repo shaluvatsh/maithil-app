@@ -12,10 +12,14 @@ import {
 import { CurrentUser, Roles } from '../auth/guards';
 import type { JwtClaims } from '../auth/auth.service';
 import { AvailabilityService } from '../availability/availability.service';
+import { DashboardService } from './dashboard.service';
 import { DomainError, ErrorCode } from '@themaithil/contracts';
 import { isLocale, TRADITION_IDS } from '@themaithil/region';
 import type { PaymentGateway } from '../payments/razorpay.client';
 import { PayoutAccountInputSchema, storableFields } from './payout-account';
+import {
+  type ObjectStore, profilePhotoKey, isAllowedDocType, ALLOWED_DOC_TYPES,
+} from '../storage/object-store';
 
 /**
  * Purohit self-service onboarding.
@@ -94,6 +98,17 @@ const WeeklyPattern = z.object({
   })).max(56),
 });
 
+const PhotoInput = z.object({
+  contentType: z.string().refine(isAllowedDocType, {
+    message: `photo must be one of ${ALLOWED_DOC_TYPES.join(', ')}`,
+  }),
+});
+
+const PhotoAttach = z.object({
+  /** Returned by `photo/upload-url`. Never a client-chosen path. */
+  photoKey: z.string().min(8).max(300),
+});
+
 const ServicesInput = z.object({
   /** Empty is allowed: a purohit narrowing their list to nothing is a pause. */
   services: z.array(z.object({
@@ -109,6 +124,8 @@ export class PurohitController {
     @Inject(DB) private readonly db: Db,
     @Inject(AvailabilityService) private readonly availability: AvailabilityService,
     @Inject('GATEWAY') private readonly gateway: PaymentGateway,
+    @Inject('OBJECT_STORE') private readonly store: ObjectStore,
+    @Inject(DashboardService) private readonly dash: DashboardService,
   ) {}
 
   /**
@@ -130,38 +147,90 @@ export class PurohitController {
   }
 
   /** Everything the onboarding screen needs, in one call. */
+  /**
+   * The purohit's dashboard.
+   *
+   * One request, because this screen is opened between jobs on a mid-range Android
+   * and five round trips is five chances to show a half-rendered page. Deliberately
+   * carries no other purohit's name or number — see `DashboardService` for why there
+   * is no leaderboard here.
+   */
+  @Get('dashboard')
+  dashboard(@CurrentUser() user: JwtClaims) {
+    return this.dash.forPandit(user.sub);
+  }
+
+  /**
+   * Whether a matched job is confirmed the instant it is offered, or waits for the
+   * purohit to accept it. ADR 0011.
+   *
+   * A DEDICATED endpoint rather than a field on the big `PUT /profile` — that PUT
+   * does `onConflictDoUpdate({ set: { ...input } })`, a full overwrite of every
+   * column `ProfileInput` names, every time it is called. Folding `autoAccept` in
+   * there would mean the wizard's own resave of years/languages/radius — which
+   * knows nothing about this flag — would need to carry a value for it on every
+   * call, or silently reset it to the schema default. A toggle that can be
+   * clobbered by editing an unrelated field is worse than no toggle.
+   *
+   * THE BUG THIS FIXES. The dashboard has told a purohit to "turn on auto-accept"
+   * since the dashboard shipped, with a button that went to `/purohit/setup#calendar`
+   * — a fragment that named a section about OPENING SLOTS, not accepting them, and
+   * never contained a control for this at all. The column (`pandit_profiles.auto_accept`,
+   * ADR 0011) has existed the whole time; nothing could ever set it from the product.
+   */
+  @Patch('auto-accept')
+  async setAutoAccept(@CurrentUser() user: JwtClaims, @Body() body: unknown) {
+    const { enabled } = z.object({ enabled: z.boolean() }).parse(body);
+    await this.db.update(panditProfiles).set({ autoAccept: enabled })
+      .where(eq(panditProfiles.userId, user.sub));
+    return { autoAccept: enabled };
+  }
+
   @Get('profile')
   async profile(@CurrentUser() user: JwtClaims) {
-    const [me] = await this.db.select({ cityId: users.cityId, name: users.name })
-      .from(users).where(eq(users.id, user.sub)).limit(1);
-    const [p] = await this.db.select().from(panditProfiles)
-      .where(eq(panditProfiles.userId, user.sub)).limit(1);
+    /*
+     * Three independent reads, run concurrently rather than one after another.
+     *
+     * This is the single most-requested purohit endpoint — every onboarding step,
+     * the rates page, the dashboard's quick actions, and the main job list all call
+     * it on mount — so its own latency is paid repeatedly per visit. None of `me`,
+     * `p` or `mine` reads the others' result, and the pool (`postgres-js`, see
+     * `db/client.ts`) is sized for concurrent queries, so there is nothing to wait
+     * for in between them.
+     */
+    const [[me], [p], mine] = await Promise.all([
+      this.db.select({ cityId: users.cityId, name: users.name })
+        .from(users).where(eq(users.id, user.sub)).limit(1),
+      this.db.select().from(panditProfiles)
+        .where(eq(panditProfiles.userId, user.sub)).limit(1),
+      this.db.select({
+        ritualId: panditRituals.ritualId, pricePaise: panditRituals.pricePaise,
+        active: panditRituals.active,
+      }).from(panditRituals).where(eq(panditRituals.panditId, user.sub)),
+    ]);
 
-    const mine = await this.db.select({
-      ritualId: panditRituals.ritualId, pricePaise: panditRituals.pricePaise,
-      active: panditRituals.active,
-    }).from(panditRituals).where(eq(panditRituals.panditId, user.sub));
-
-    // The catalogue with the city's price band, so the purohit sets a rate against
-    // a reference rather than into a vacuum.
-    const catalogue = await this.db.select({
-      id: rituals.id, slug: rituals.slug,
-      bandMin: ritualCityPrices.bandMinPaise,
-      bandMax: ritualCityPrices.bandMaxPaise,
-      bandDefault: ritualCityPrices.defaultPaise,
-    })
-      .from(rituals)
-      .innerJoin(ritualCityPrices, and(
-        eq(ritualCityPrices.ritualId, rituals.id),
-        eq(ritualCityPrices.cityId, me?.cityId ?? ''),
-      ))
-      .where(eq(rituals.active, true))
-      .orderBy(rituals.sortOrder);
-
-    const [currentCity] = me?.cityId
-      ? await this.db.select({ slug: cities.slug }).from(cities)
-          .where(eq(cities.id, me.cityId)).limit(1)
-      : [];
+    // These two DO depend on `me.cityId`, but not on each other.
+    const [catalogue, [currentCity]] = await Promise.all([
+      // The catalogue with the city's price band, so the purohit sets a rate
+      // against a reference rather than into a vacuum.
+      this.db.select({
+        id: rituals.id, slug: rituals.slug,
+        bandMin: ritualCityPrices.bandMinPaise,
+        bandMax: ritualCityPrices.bandMaxPaise,
+        bandDefault: ritualCityPrices.defaultPaise,
+      })
+        .from(rituals)
+        .innerJoin(ritualCityPrices, and(
+          eq(ritualCityPrices.ritualId, rituals.id),
+          eq(ritualCityPrices.cityId, me?.cityId ?? ''),
+        ))
+        .where(eq(rituals.active, true))
+        .orderBy(rituals.sortOrder),
+      me?.cityId
+        ? this.db.select({ slug: cities.slug }).from(cities)
+            .where(eq(cities.id, me.cityId)).limit(1)
+        : Promise.resolve([]),
+    ]);
 
     return {
       name: me?.name ?? null,
@@ -205,6 +274,96 @@ export class PurohitController {
     return saved;
   }
 
+  /**
+   * A rate the devotee was actually shown.
+   *
+   * `ritual_city_prices` carries a per-city band, the catalog advertises it as the
+   * price of the ritual, and the onboarding screen prints it under the input as
+   * "typically 1,100 - 2,500". Nothing enforced it. The only bound was the schema's
+   * 100 - 500,000 sanity range, so a purohit could save 40,000 against a band that
+   * tops out at 2,500, and the quote came back 46,000 - eighteen times the ceiling
+   * the listing promised.
+   *
+   * Ordinarily an outlier is the marketplace's problem to solve by letting the
+   * customer pick someone else. Here they cannot: since ADR 0012 the platform
+   * ASSIGNS the purohit, so the devotee never chose this one and has no way to
+   * decline them short of abandoning the booking at the payment screen, having
+   * already given their address.
+   *
+   * Rejected rather than silently clamped: the number is the purohit's income, and
+   * quietly rewriting it would leave them believing they earn one thing while we
+   * pay another. A missing band is not a violation - a city we have not priced has
+   * advertised nothing to contradict.
+   */
+  private async assertWithinBand(
+    panditId: string,
+    services: ReadonlyArray<{ ritualId: string; pricePaise: number }>,
+  ) {
+    const cityId = await this.myCityId(panditId);
+    const bands = await this.db.select({
+      ritualId: ritualCityPrices.ritualId,
+      lo: ritualCityPrices.bandMinPaise,
+      hi: ritualCityPrices.bandMaxPaise,
+    }).from(ritualCityPrices).where(and(
+      eq(ritualCityPrices.cityId, cityId),
+      inArray(ritualCityPrices.ritualId, services.map((s) => s.ritualId)),
+    ));
+    const byRitual = new Map(bands.map((b) => [b.ritualId, b]));
+
+    const rupees = (p: number) => `₹${Math.round(p / 100).toLocaleString('en-IN')}`;
+    for (const s of services) {
+      const band = byRitual.get(s.ritualId);
+      if (!band) continue;
+      const lo = Number(band.lo), hi = Number(band.hi);
+      if (s.pricePaise < lo || s.pricePaise > hi) {
+        throw new DomainError(
+          ErrorCode.RATE_OUT_OF_BAND,
+          `${rupees(s.pricePaise)} is outside the ${rupees(lo)} - ${rupees(hi)} range `
+          + 'devotees are shown for this service in your city. '
+          + 'Choose a rate inside it, or ask us to review the range.',
+          { ritualId: s.ritualId, pricePaise: s.pricePaise, bandMinPaise: lo, bandMaxPaise: hi },
+        );
+      }
+    }
+  }
+
+  /**
+   * A signed URL for the purohit's own photo.
+   *
+   * Separate from the KYC upload path, and not because the mechanics differ. A KYC
+   * image is private, seen only by a reviewer, and deleted thirty days after a
+   * decision; this one is public, permanent, and the first thing a devotee sees. They
+   * are different objects with different lifetimes, and the key prefix keeps them
+   * apart so a purge sweep written later cannot take the photo with it.
+   */
+  @Post('photo/upload-url')
+  async photoUploadUrl(@CurrentUser() user: JwtClaims, @Body() body: unknown) {
+    const { contentType } = PhotoInput.parse(body);
+    return this.store.presignUpload({
+      key: profilePhotoKey({ panditId: user.sub, contentType }),
+      contentType,
+    });
+  }
+
+  /**
+   * Record that the photo was uploaded.
+   *
+   * Separate call for the same reason KYC has one: signing a URL is not evidence
+   * that anything was stored, and only a client that finished its PUT gets here.
+   */
+  @Post('photo')
+  async setPhoto(@CurrentUser() user: JwtClaims, @Body() body: unknown) {
+    const { photoKey } = PhotoAttach.parse(body);
+    // The key must be one we issued to THIS purohit — otherwise a purohit could
+    // point their profile at another person's photograph.
+    if (!photoKey.startsWith(`profile/${user.sub}/`)) {
+      throw new DomainError(ErrorCode.FORBIDDEN, 'that photo key is not yours');
+    }
+    await this.db.update(panditProfiles).set({ photoKey })
+      .where(eq(panditProfiles.userId, user.sub));
+    return { photoUrl: await this.store.presignDownload({ key: photoKey }) };
+  }
+
   @Put('services')
   async saveServices(@CurrentUser() user: JwtClaims, @Body() body: unknown) {
     const { services } = ServicesInput.parse(body);
@@ -216,6 +375,7 @@ export class PurohitController {
       if (known.length !== new Set(ids).size) {
         throw new DomainError(ErrorCode.NOT_FOUND, 'one of those services does not exist');
       }
+      await this.assertWithinBand(user.sub, services);
     }
 
     return this.db.transaction(async (tx) => {
@@ -446,9 +606,15 @@ export class PurohitController {
    */
   @Post('availability')
   async openCalendar(@CurrentUser() user: JwtClaims) {
-    await this.availability.materialise({
-      panditId: user.sub, cityId: await this.myCityId(user.sub),
-    });
+    const cityId = await this.myCityId(user.sub);
+    await this.availability.materialise({ panditId: user.sub, cityId });
+    /*
+     * And their working hours, which is what the devotee's time picker and
+     * `matchPandit` actually read (ADR 0013). Without this a purohit finishes
+     * onboarding and is bookable at no time at all — the slot rows above are the
+     * old model and nothing consults them for time-based availability.
+     */
+    await this.availability.ensureWorkingHours({ panditId: user.sub, cityId });
 
     /**
      * Report the TOTAL open, not the number newly written.

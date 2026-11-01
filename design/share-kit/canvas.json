@@ -1,0 +1,33 @@
+{
+  "artboards": [
+    { "file": "Main.dc.html", "x": 0, "y": 0, "w": 1200, "h": 630, "title": "OG share card — default" },
+    { "file": "RitualOG.dc.html", "x": 1320, "y": 0, "w": 1200, "h": 630, "title": "OG share card — ritual page" },
+    { "file": "WhatsAppSquare.dc.html", "x": 0, "y": 750, "w": 1080, "h": 1080, "title": "WhatsApp forward — 1080²" },
+    { "file": "AppIcon.dc.html", "x": 1320, "y": 750, "w": 1200, "h": 1340, "title": "App icon & favicon" },
+    { "file": "Wordmark.dc.html", "x": 0, "y": 2210, "w": 1200, "h": 1180, "title": "Wordmark & palette" }
+  ],
+  "annotations": [
+    {
+      "id": "og-sizing",
+      "x": 0,
+      "y": -150,
+      "w": 480,
+      "text": "1200×630 is the size WhatsApp, Slack and X all crop from.\nEverything load-bearing sits left of 720px so the diya can crop away without losing the message."
+    },
+    {
+      "id": "ritual-slot",
+      "x": 1320,
+      "y": -150,
+      "w": 480,
+      "text": "The ritual name and the detail line are editable — set them per page from generateMetadata().\nPhoto is the real satyanarayan-puja.jpg already in public/images/rituals."
+    },
+    {
+      "id": "icon-decision",
+      "x": 2600,
+      "y": 750,
+      "w": 380,
+      "text": "One decision to make here: keep ॐ, or move to the diya.\nॐ is what the nav already uses. The diya is the one that still reads at 16px in a browser tab."
+    }
+  ],
+  "launch": { "view": "canvas" }
+}

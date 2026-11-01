@@ -97,3 +97,45 @@ describe('refund policy', () => {
     }
   });
 });
+
+/**
+ * The books have to close on a fully-digital booking.
+ *
+ * `planSettlement`'s digital branch pays the purohit out of escrow on the stated
+ * assumption that "the full amount sits in escrow". Escrow is only ever credited by
+ * `planTokenCapture`, with `tokenPaise` — so if the token is less than the total,
+ * settlement debits money that was never collected and credits it to the purohit.
+ * Measured on a live booking before this was fixed: 5688 paise in, 47400 out.
+ */
+describe('digital_full leaves nothing uncollected', () => {
+  const digital = () => computePrice({ ...base, paymentMode: 'digital_full' as const });
+
+  it('charges the whole total up front', () => {
+    const p = digital();
+    expect(p.tokenPaise).toBe(p.totalPaise);
+  });
+
+  it('leaves no balance to be collected on the day', () => {
+    // The booking screen promised "Charged when the puja is done" for this amount.
+    // Nothing charges it — there is no balance payment intent anywhere.
+    expect(digital().balancePaise).toBe(0);
+  });
+
+  it('puts exactly what settlement pays out into escrow', () => {
+    // Settlement debits platformFee + (dakshina + samagri + travel); escrow is
+    // credited tokenPaise. Unequal means escrow goes negative by the difference on
+    // every booking.
+    const p = digital();
+    const paidOut = p.platformFeePaise + p.dakshinaPaise + p.samagriPaise + p.travelPaise;
+    expect(p.tokenPaise).toBe(paidOut);
+  });
+
+  it('still takes only the fee up front in cash mode', () => {
+    // The correction must not touch the mode where the purohit collects on the day.
+    const cash = computePrice({ ...base, paymentMode: 'cash' as const });
+    expect(cash.tokenPaise).toBe(cash.platformFeePaise);
+    expect(cash.balancePaise).toBe(
+      cash.dakshinaPaise + cash.samagriPaise + cash.travelPaise,
+    );
+  });
+});

@@ -26,7 +26,7 @@ export class PanchangJob {
     private readonly horizonDays: number,
     /**
      * No leader election, ever - the single most severe finding in
-     * docs/ARCHITECTURE-REVIEW.md. This job does DELETE then bulk INSERT over the
+     * docs/ARCHITECTURE.md. This job does DELETE then bulk INSERT over the
      * same date window, and `panchang_intervals` carries a GiST exclusion
      * constraint forbidding overlaps. Two instances running it concurrently
      * deadlock or violate the constraint, and in the window between delete and

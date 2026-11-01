@@ -48,7 +48,7 @@ export function OccasionPicker<R extends OccasionRitualShape>({
         <div className="occ-grid">
           {OCCASIONS.map((o) => (
             <button key={o.id} className="occ-card" onClick={() => setOccasion(o)}>
-              <span className="ic" aria-hidden="true">{o.emoji}</span>
+              <span className="ic"><img src={o.photo} alt="" aria-hidden="true" /></span>
               <span className="lb">{o.label}</span>
               <span className="bl">{o.blurb}</span>
             </button>
@@ -74,9 +74,7 @@ export function OccasionPicker<R extends OccasionRitualShape>({
         ← All occasions
       </button>
 
-      <h2 className="occ-q">
-        <span aria-hidden="true">{occasion.emoji}</span> {occasion.label}
-      </h2>
+      <h2 className="occ-q">{occasion.label}</h2>
 
       {/* The question every family has and nobody in this category answers. */}
       <div className="occ-guide">{occasion.guidance}</div>

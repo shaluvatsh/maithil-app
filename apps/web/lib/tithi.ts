@@ -79,11 +79,29 @@ export function readTithi(raw: string | null | undefined): Tithi | null {
 /**
  * The tithis a household marks regardless of whether they are booking anything.
  *
- * Distinct from "auspicious for a ritual", which is what the booking flow ranks —
- * an Ekadashi is observed by people who have no puja planned, and Purnima and
- * Amavasya anchor the fortnight. Listing these beside the search box is the reason
- * someone opens the site on a day they are not buying.
+ * MOVED to `packages/region/src/festivals.ts`, and matched on the stored value key
+ * rather than on the displayed label. This used to hold English regexes —
+ * /purnima|pournami/ — tested against `tithiAtSunrise`, which the API returns
+ * ALREADY LOCALISED. So the moment a reader was on Bengali the string was পূর্ণিমা,
+ * every pattern missed, and the notable tithis silently disappeared. It happened to
+ * work only because the app opened in English; ADR 0017 made English the default,
+ * which hid the bug rather than fixing it.
+ *
+ * Re-exported here so existing callers keep working, and so there is exactly one
+ * list — the API now derives the same observances server-side from the same keys.
  */
+export { notableTithiKey } from '@themaithil/region';
+
+/**
+ * @deprecated Takes a DISPLAY string and therefore only works in English. Use
+ * `notableTithiKey` with the value key, or read the `/v1/panchang/upcoming` feed,
+ * which does this server-side in the reader's language.
+ */
+export function notableTithi(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  return NOTABLE.find((n) => n.match.test(raw))?.label ?? null;
+}
+
 const NOTABLE: Array<{ match: RegExp; label: string }> = [
   { match: /purnima|pournami/i, label: 'Purnima' },
   { match: /amavasya|amabasya/i, label: 'Amavasya' },
@@ -91,11 +109,6 @@ const NOTABLE: Array<{ match: RegExp; label: string }> = [
   { match: /chaturthi|chaturthy/i, label: 'Chaturthi' },
   { match: /ashtami|astami/i, label: 'Ashtami' },
 ];
-
-export function notableTithi(raw: string | null | undefined): string | null {
-  if (!raw) return null;
-  return NOTABLE.find((n) => n.match.test(raw))?.label ?? null;
-}
 
 export type NowState =
   | { kind: 'abhijit'; until: string }

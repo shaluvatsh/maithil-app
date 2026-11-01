@@ -23,9 +23,13 @@ export const RITUAL_EMOJI: Readonly<Record<string, string>> = {
   'biye': '💒',
   'satyanarayan-puja': '📿',
   'rudrabhishek': '🔱',
+  'chandi-paath': '🗡️',
+  'rudra-chandi-paath': '⚔️',
+  'mahamrityunjay-jaap': '🕉️',
   'annaprashan': '🍚',
   'namkaran': '🌸',
   'upanayan': '🧵',
+  'durga-puja': '🛕',
   'durga-puja-ghot': '🪔',
   'kali-puja': '🌺',
   'lakshmi-puja': '🪙',
@@ -62,7 +66,9 @@ export const emojiFor = (slug: string): string => RITUAL_EMOJI[slug] ?? FALLBACK
  * dead-end. Matched only, never displayed: the ritual keeps its proper name.
  */
 export const RITUAL_ALIASES: Readonly<Record<string, readonly string[]>> = {
-  'griha-prabesh': ['housewarming', 'new house', 'grihapravesh', 'house warming', 'moving in'],
+  'griha-prabesh': [
+    'housewarming', 'new house', 'grihapravesh', 'griha prabesh', 'house warming', 'moving in',
+  ],
   'biye': ['wedding', 'marriage', 'shaadi', 'vivah', 'bengali wedding'],
   'annaprashan': ['first rice', 'rice ceremony', 'baby food', 'mukhe bhaat', 'annaprasan'],
   'namkaran': ['naming', 'baby name', 'namkaran sanskar'],
@@ -70,11 +76,28 @@ export const RITUAL_ALIASES: Readonly<Record<string, readonly string[]>> = {
   'nabagraha-shanti': ['navagraha', 'planet', 'graha shanti', 'dosha', 'nine planets'],
   'sraddha': ['last rites', 'death anniversary', 'ancestor', 'shraddha', 'funeral'],
   'tarpan': ['ancestor offering', 'pitru', 'tarpanam'],
-  'bastu-puja': ['vastu', 'vaastu', 'office opening', 'shop opening'],
+  'bastu-puja': ['vastu', 'vaastu', 'bastu', 'office opening', 'shop opening'],
   'satyanarayan-puja': ['satyanarayana', 'katha', 'satyanarayn'],
+  'durga-puja': ['durga', 'durga puja', 'pujo', 'saptami', 'ashtami', 'nabami', 'dashami'],
   'rudrabhishek': ['shiva', 'shiv abhishek', 'mahadev', 'abhishek'],
-  'halkhata': ['new account book', 'business new year', 'hal khata'],
+  'chandi-paath': ['chandi', 'saptashati', 'durga saptashati', 'devi paath'],
+  'rudra-chandi-paath': ['rudra chandi', 'rudrachandi', 'chandi rudra'],
+  'mahamrityunjay-jaap': ['mahamrityunjay', 'mrityunjay', 'maha mrityunjaya', 'jaap', 'japa'],
+  /*
+   * The display name generalised to "New Ledger Puja" (see rituals.kolkata.ts) so a
+   * devotee outside Bengal recognises what it is; these keep it findable by the
+   * name a Kolkata purohit or devotee would actually type.
+   */
+  'halkhata': ['new account book', 'business new year', 'hal khata', 'halkhata', 'poila boishakh'],
   'ganesh-puja': ['ganpati', 'ganesha', 'vinayaka'],
+  /** Display name generalised to "Sharad Purnima" - the Bengali term stays searchable. */
+  'lakshmi-puja': ['kojagari', 'kojagari purnima', 'sharad purnima', 'kojagari lakshmi puja'],
+  /** Display name generalised to "Kalash Sthapana" - the Bengali term stays searchable. */
+  'durga-puja-ghot': ['ghot', 'ghot puja', 'ghot sthapana', 'kalash sthapana'],
+  /** Display name dropped "(Gopal Puja)" - the Bengali term stays searchable. */
+  'janmashtami-puja': ['gopal puja', 'krishna janmashtami', 'gokulashtami'],
+  /** Display name generalised to "Vishwakarma Puja" - the Bengali spelling stays searchable. */
+  'bishwakarma-puja': ['bishwakarma', 'vishwakarma jayanti'],
   'online-aarti': ['aarti online', 'live aarti', 'video aarti'],
   'virtual-consultation': ['ask a pandit', 'consultation', 'talk to purohit'],
   'personalised-puja': ['custom puja', 'bespoke', 'my own puja'],

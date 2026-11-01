@@ -1,10 +1,10 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { eq } from 'drizzle-orm';
 import { ulid } from 'ulid';
 import { makeHarness, type Harness } from '../../../test/harness';
 import { notificationTemplates, notifications } from '../../../db/schema/index';
 import { NotificationService, render } from '../notifications.service';
 import { ConsoleChannel, type Channel } from '../channels';
+import { htmlFromText } from '../email-channel';
 import { NotificationConsumer } from '../notifications.consumer';
 
 let h: Harness;
@@ -115,8 +115,7 @@ describe('outbox consumer', () => {
       panditId: h.ids.panditId, ritualId: h.ids.ritualId, addressId: h.ids.addressId,
       date: new Date(Date.now() + 10 * 86400_000).toISOString().slice(0, 10),
       slotIdx: 1, samagriOption: 'pandit_brings', paymentMode: 'cash',
-      attendeeCount: 10, devoteeId: h.ids.devoteeId, citySlug: 'kolkata',
-    } as never);
+      attendeeCount: 10, devoteeId: h.ids.devoteeId,    } as never);
 
     const event = {
       id: 'EVT-1', eventType: 'booking.confirmed', aggregateId: d.id, payload: {},
@@ -144,5 +143,47 @@ describe('outbox consumer', () => {
     await expect(consumer.publish({
       id: 'EVT-3', eventType: 'booking.confirmed', aggregateId: 'missing-booking', payload: {},
     })).resolves.toBeUndefined();
+  });
+});
+
+/**
+ * THE HTML PART OF A TRANSACTIONAL EMAIL.
+ *
+ * The only mail this product sends is a password reset, and its entire payload is a
+ * URL. Many clients do not auto-link a bare URL in a text/plain body, which leaves
+ * someone already locked out copying a 100-character link by hand off a phone. A
+ * multipart message also filters as spam far less often than a text-only one, which
+ * matters for a sending domain with no reputation yet.
+ */
+describe('the HTML part of an email', () => {
+  it('makes a bare link clickable', () => {
+    const html = htmlFromText('Open this:\nhttps://themaithil.in/reset?token=abc');
+    expect(html).toContain('<a href="https://themaithil.in/reset?token=abc">');
+  });
+
+  it('keeps line breaks, so the body does not run together', () => {
+    expect(htmlFromText('one\ntwo')).toContain('one<br>two');
+  });
+
+  /**
+   * ESCAPE FIRST, THEN LINKIFY. Escaping after building the anchor would mangle the
+   * tag; linkifying unescaped text would let a `<` in the body open an element. Our
+   * own templates are safe today, but a mail body is exactly where "it is our own
+   * content" stops being true.
+   */
+  it('escapes markup rather than emitting it', () => {
+    const html = htmlFromText('<script>alert(1)</script>');
+    expect(html).not.toContain('<script>');
+    expect(html).toContain('&lt;script&gt;');
+  });
+
+  it('does not let a crafted link break out of the anchor', () => {
+    const html = htmlFromText('https://evil.example/"><script>alert(1)</script>');
+    expect(html).not.toContain('<script>');
+    expect(html).toContain('&quot;');
+  });
+
+  it('leaves text with no link alone apart from escaping', () => {
+    expect(htmlFromText('nothing to see')).toContain('nothing to see');
   });
 });

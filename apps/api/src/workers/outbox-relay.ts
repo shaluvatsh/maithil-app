@@ -48,46 +48,48 @@ export class OutboxRelay {
   }
 
   /**
-   * Claim, publish and mark - all inside ONE transaction, not three.
+   * Claim, then publish and mark OUTSIDE any transaction.
    *
-   * The claim used `FOR UPDATE SKIP LOCKED` and then committed immediately, which
-   * releases every row lock before a single event is published. A second relay
-   * instance's claim then sees those same rows as unlocked and unpublished, and
-   * claims and publishes them again - the exact double-publish SKIP LOCKED exists
-   * to prevent, and the opposite of what the code comment and
-   * `docs/ARCHITECTURE-REVIEW.md` both claimed happens. Holding the locks for the
-   * whole batch is what actually makes concurrent relay instances safe: a second
-   * instance's `claimBatch` now blocks-then-skips these rows until this
-   * transaction commits, by which point they are already marked published.
+   * This used to do all three inside ONE transaction, holding one of only ten
+   * pooled connections - shared with every request the API serves - open across up
+   * to 100 sequential, awaited publish() calls, each one a real HTTP round trip to
+   * the WhatsApp BSP. A slow or briefly-unavailable BSP (routine in production)
+   * stalled that connection, and everything else competing for the pool, for the
+   * whole batch.
+   *
+   * `claimBatch` is now a single fast UPDATE that commits and releases its
+   * connection before the first publish() call runs (see `claimedAt` on the outbox
+   * schema and migration 0016). Two relay instances can no longer double-publish by
+   * racing a lock that released early, because the claim itself is what is raced:
+   * whichever instance's UPDATE commits first, the other's `WHERE claimed_at IS NULL
+   * OR claimed_at < staleBefore` no longer matches that row.
    */
   async drainOnce(limit = 100): Promise<number> {
-    return this.db.transaction(async (tx) => {
-      const rows = await this.outbox.claimBatch(tx, limit);
-      if (rows.length === 0) return 0;
+    const rows = await this.outbox.claimBatch(this.db, limit);
+    if (rows.length === 0) return 0;
 
-      const published: string[] = [];
-      for (const row of rows) {
-        try {
-          await this.publisher.publish({
-            id: row.id,
-            eventType: row.eventType,
-            aggregateId: row.aggregateId,
-            payload: row.payload,
-          });
-          published.push(row.id);
-        } catch (e) {
-          const msg = e instanceof Error ? e.message : String(e);
-          await this.outbox.markFailed(tx, row.id, msg);
-          if (row.attempts + 1 >= MAX_ATTEMPTS) {
-            // Give up publishing but leave the row: it is the audit trail of
-            // intent, and an operator can replay it once the downstream is healthy.
-            this.log.error(`event ${row.id} (${row.eventType}) parked after ${MAX_ATTEMPTS} attempts`);
-          }
+    const published: string[] = [];
+    for (const row of rows) {
+      try {
+        await this.publisher.publish({
+          id: row.id,
+          eventType: row.eventType,
+          aggregateId: row.aggregateId,
+          payload: row.payload,
+        });
+        published.push(row.id);
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        await this.outbox.markFailed(this.db, row.id, msg);
+        if (row.attempts + 1 >= MAX_ATTEMPTS) {
+          // Give up publishing but leave the row: it is the audit trail of
+          // intent, and an operator can replay it once the downstream is healthy.
+          this.log.error(`event ${row.id} (${row.eventType}) parked after ${MAX_ATTEMPTS} attempts`);
         }
       }
-      await this.outbox.markPublished(tx, published);
-      return published.length;
-    });
+    }
+    await this.outbox.markPublished(this.db, published);
+    return published.length;
   }
 }
 
@@ -98,5 +100,37 @@ export class LoggingPublisher implements EventPublisher {
   async publish(event: { id: string; eventType: string; aggregateId: string }) {
     this.seen.push({ eventType: event.eventType, aggregateId: event.aggregateId });
     this.log.debug(`${event.eventType} ${event.aggregateId}`);
+  }
+}
+
+/**
+ * Delivers every event to several consumers.
+ *
+ * The relay took ONE publisher, which was fine while notifications were the only
+ * thing listening. Refunds are the second, and they must not be bolted onto the
+ * notification consumer — they are a different concern with a different failure
+ * mode, and `processed_events` is already keyed by consumer precisely so that two
+ * of them can claim the same event independently.
+ *
+ * Runs them in sequence and swallows per-consumer failures: one consumer throwing
+ * must never stop the others from seeing the event, and must never stall the relay.
+ * Each consumer owns its own retry by releasing its own claim.
+ */
+export class FanOutPublisher implements EventPublisher {
+  private readonly log = new Logger('events.fanout');
+
+  constructor(private readonly publishers: readonly EventPublisher[]) {}
+
+  async publish(event: { id: string; eventType: string; aggregateId: string; payload: unknown }) {
+    for (const p of this.publishers) {
+      try {
+        await p.publish(event);
+      } catch (e) {
+        this.log.error(
+          `consumer threw on ${event.eventType} ${event.aggregateId}`,
+          e instanceof Error ? e.stack : String(e),
+        );
+      }
+    }
   }
 }

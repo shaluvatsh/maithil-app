@@ -26,11 +26,35 @@ jobs:
       - name: Test
         run: pnpm test
 
-      - name: Build web
-        run: pnpm --filter @themaithil/web build
-
       - name: Build API image
         run: docker build -f apps/api/Dockerfile -t themaithil-api:${{ github.sha }} .
+
+      # Replaces a bare `next build`, which proved the app COMPILES and nothing
+      # about whether it can ship. The image is where the real failures live: a
+      # standalone trace that misses the workspace packages, or static copied to
+      # the documented `.next/static` rather than the `.next-build/static` this
+      # app's custom distDir actually uses — an image that starts, serves HTML and
+      # 404s every stylesheet.
+      - name: Build web image
+        run: |
+          docker build -f apps/web/Dockerfile \
+            --build-arg NEXT_PUBLIC_API_URL=https://themaithil-api.fly.dev \
+            -t themaithil-web:${{ github.sha }} .
+
+      # Prove it SERVES, not just that it built. Both of these shipped broken in
+      # ways a build step cannot see.
+      - name: Smoke the web image
+        run: |
+          docker run -d --name web -p 3001:3001 themaithil-web:${{ github.sha }}
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:3001/ >/dev/null && break || sleep 2
+          done
+          curl -sf http://localhost:3001/ > /tmp/home.html
+          CSS=$(grep -o '/_next/static/css/[^"]*\.css' /tmp/home.html | head -1)
+          test -n "$CSS" || { echo 'no stylesheet referenced'; docker logs web; exit 1; }
+          curl -sf "http://localhost:3001$CSS" >/dev/null \
+            || { echo "stylesheet 404: $CSS — check the static COPY path"; exit 1; }
+          docker rm -f web
 
   deploy:
     needs: verify
@@ -42,6 +66,17 @@ jobs:
       - uses: superfly/flyctl-actions/setup-flyctl@master
       # release_command in fly.toml runs migrations before the new version takes
       # traffic; a failed migration aborts the deploy rather than half-applying.
-      - run: flyctl deploy --remote-only
+      - name: Deploy API
+        run: flyctl deploy --remote-only --config fly.toml
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+      # AFTER the API, deliberately. The browser bundle is built against the API's
+      # URL and a release may add an endpoint the new frontend calls; deploying the
+      # frontend first opens a window where it asks for something not yet there.
+      # The reverse window — a new API with an old frontend — is the one the API's
+      # own contract is designed to tolerate.
+      - name: Deploy web
+        run: flyctl deploy --remote-only --config fly.web.toml
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}

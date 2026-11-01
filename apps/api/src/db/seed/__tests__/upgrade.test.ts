@@ -93,7 +93,7 @@ describe('prices are plausible', () => {
 });
 
 describe('remote services', () => {
-  it('seeds them as real bookable rows with no materials attached', async () => {
+  it('seeds them as real bookable rows, billed nothing for materials', async () => {
     const pg = await PGlite.create({ extensions: { btree_gist } });
     await pg.exec('CREATE EXTENSION IF NOT EXISTS btree_gist;');
     await applyMigrations(pg, allMigrations());
@@ -107,14 +107,42 @@ describe('remote services', () => {
       .toEqual(['online-aarti', 'virtual-consultation']);
     expect(virtual.rows.every((r) => r.category === 'online-services')).toBe(true);
 
-    // Nobody carries samagri down a video call: a BOM here would put a materials
-    // line on a bill for a puja with no venue.
-    const boms = await pg.query<{ n: number }>(
+    /*
+     * A video call carries no CHARGE for materials — but "no charge" and "no list"
+     * are different things, and treating them as one left an online aarti with
+     * nothing telling the family to have a lamp ready.
+     *
+     * A consultation needs nothing and has no BOM. An aarti has a checklist, priced
+     * at zero: the devotee buys a diya from their own shop, so the total must stay
+     * zero no matter what a caller sends as `samagriOption`. That is the invariant
+     * worth pinning — not the absence of the rows.
+     */
+    const consultation = await pg.query<{ n: number }>(
       `SELECT count(*)::int AS n FROM boms b
+         JOIN rituals r ON r.id = b.ritual_id
+        WHERE r.slug = 'virtual-consultation'`,
+    );
+    expect(consultation.rows[0]!.n).toBe(0);
+
+    const virtualSamagri = await pg.query<{ total: number }>(
+      `SELECT coalesce(sum(bi.line_price_paise), 0)::int AS total
+         FROM bom_items bi
+         JOIN boms b   ON b.id = bi.bom_id
          JOIN rituals r ON r.id = b.ritual_id
         WHERE r.delivery_mode = 'virtual'`,
     );
-    expect(boms.rows[0]!.n).toBe(0);
+    expect(virtualSamagri.rows[0]!.total, 'a video call must never carry a samagri charge')
+      .toBe(0);
+
+    const aartiChecklist = await pg.query<{ n: number }>(
+      `SELECT count(*)::int AS n
+         FROM bom_items bi
+         JOIN boms b   ON b.id = bi.bom_id
+         JOIN rituals r ON r.id = b.ritual_id
+        WHERE r.slug = 'online-aarti'`,
+    );
+    expect(aartiChecklist.rows[0]!.n, 'an online aarti still needs a lamp at the devotee end')
+      .toBeGreaterThan(0);
 
     // But they must still be priced in every city, or they vanish from browse.
     const priced = await pg.query<{ n: number }>(

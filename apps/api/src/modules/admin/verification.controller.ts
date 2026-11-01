@@ -1,5 +1,5 @@
 import { Controller, Post, Get, Param, Body, Query, Inject } from '@nestjs/common';
-import { eq, sql, desc, inArray } from 'drizzle-orm';
+import { eq, and, sql, desc, inArray } from 'drizzle-orm';
 import { z } from 'zod';
 import { DB } from '../../common/tokens';
 import type { Db } from '../../db/client';
@@ -7,15 +7,49 @@ import {
   panditProfiles, users, kycRecords, cities, bookings, bookingEvents,
 } from '../../db/schema/index';
 import { AvailabilityService } from '../availability/availability.service';
+import { OutboxService } from '../../domain/outbox';
 import type { ObjectStore } from '../storage/object-store';
 import { AuditService } from '../../common/audit';
 import { Roles, CurrentUser } from '../auth/guards';
 import type { JwtClaims } from '../auth/auth.service';
 import { DomainError, ErrorCode } from '@themaithil/contracts';
 
+/**
+ * One document's verdict.
+ *
+ * A rejection must carry a reason, because the purohit reads it and it is the only
+ * thing that tells them which document to replace and why. An approval needs none.
+ */
+const DocumentVerdict = z.discriminatedUnion('decision', [
+  z.object({ decision: z.literal('verified'), notes: z.string().max(500).optional() }),
+  z.object({ decision: z.literal('rejected'), notes: z.string().trim().min(3).max(500) }),
+]);
+
+/**
+ * Asking for specific documents again.
+ *
+ * At least one document, each with a reason the purohit will read. The reason is
+ * required rather than optional: a request to re-upload with no explanation is the
+ * thing that makes someone send the same photograph a second time.
+ */
+const ChangeRequest = z.object({
+  /** Anything about the application as a whole. Optional — the per-document reasons carry it. */
+  notes: z.string().max(1000).optional(),
+});
+
 const Decision = z.object({
   decision: z.enum(['verified', 'rejected']),
+  /** Applies to the whole application — shown once, above the documents. */
   notes: z.string().max(1000).optional(),
+  /**
+   * Per-document notes, keyed by `kyc_records.id`.
+   *
+   * The single `notes` field was written to EVERY document row for the purohit, so
+   * "the PAN is illegible" appeared under their photo ID, their address proof and
+   * their certificate alike. A rejected purohit could not tell which document to
+   * replace, which is the only thing the note exists to tell them.
+   */
+  documentNotes: z.record(z.string(), z.string().max(500)).optional(),
 });
 
 /**
@@ -35,25 +69,83 @@ export class VerificationController {
     @Inject(AuditService) private readonly audit: AuditService,
     @Inject(AvailabilityService) private readonly availability: AvailabilityService,
     @Inject('OBJECT_STORE') private readonly store: ObjectStore,
+    @Inject(OutboxService) private readonly outbox: OutboxService,
   ) {}
 
   @Get('verification-queue')
   async queue() {
-    return this.db.select({
+    const rows = await this.db.select({
       id: users.id, name: users.name, phone: users.phone,
       kycStatus: panditProfiles.kycStatus,
       experienceYears: panditProfiles.experienceYears,
       languages: panditProfiles.languages,
       traditions: panditProfiles.traditions,
       createdAt: panditProfiles.createdAt,
+      highestQualification: panditProfiles.highestQualification,
+      submittedAt: panditProfiles.submittedAt,
+      photoKey: panditProfiles.photoKey,
       documents: sql<number>`(
         SELECT count(*)::int FROM kyc_records k WHERE k.pandit_id = ${panditProfiles.userId}
+      )`,
+      /*
+       * WHICH required documents are on file, not just how many exist.
+       *
+       * A count cannot tell a reviewer whether the missing one is a recording or a
+       * PAN card. The purohit-side submit gate already refuses an incomplete
+       * application, but a queue row is what an operator decides from, and older
+       * applications predate that gate — so the screen has to be able to say what is
+       * actually here.
+       */
+      /*
+       * How far the review has got.
+       *
+       * A reviewer interrupted halfway through four documents had no way to see, from
+       * the queue, that they had already checked three — so they started again. The
+       * verdicts are recorded per document now, and this surfaces them.
+       */
+      reviewedDocs: sql<number>`(
+        SELECT count(*)::int FROM kyc_records k
+         WHERE k.pandit_id = ${panditProfiles.userId} AND k.status <> 'pending'
+      )`,
+      rejectedDocs: sql<number>`(
+        SELECT count(*)::int FROM kyc_records k
+         WHERE k.pandit_id = ${panditProfiles.userId} AND k.status = 'rejected'
+      )`,
+      missingDocs: sql<string[]>`(
+        SELECT coalesce(array_agg(r), ARRAY[]::text[])
+          FROM unnest(ARRAY['identity','address','pan','qualification']) AS r
+         WHERE NOT EXISTS (
+           SELECT 1 FROM kyc_records k
+            WHERE k.pandit_id = ${panditProfiles.userId} AND k.type::text = r
+         )
       )`,
     })
       .from(panditProfiles)
       .innerJoin(users, eq(users.id, panditProfiles.userId))
-      .where(sql`${panditProfiles.kycStatus} IN ('pending', 'submitted')`)
-      .orderBy(panditProfiles.createdAt);
+      .where(sql`${panditProfiles.kycStatus} IN ('pending', 'submitted', 'changes_requested')`)
+      /*
+       * Oldest submission first, not oldest signup.
+       *
+       * This ordered by `createdAt` — the date the purohit joined — so someone who
+       * signed up months ago and submitted this morning sat above someone who did
+       * both yesterday. A work queue is ordered by when the work arrived.
+       *
+       * Nulls last: a `pending` purohit has submitted nothing, so there is nobody
+       * waiting on us and they belong below everyone who is.
+       */
+      .orderBy(sql`${panditProfiles.submittedAt} ASC NULLS LAST`);
+
+    /*
+     * A signed URL for each face.
+     *
+     * Comparing the photograph to the photo ID IS the identity check a reviewer
+     * performs, so the queue has to show it rather than making them open a document
+     * to see who they are looking at. Signed per request like every other object.
+     */
+    return Promise.all(rows.map(async ({ photoKey, ...row }) => ({
+      ...row,
+      photoUrl: photoKey ? await this.store.presignDownload({ key: photoKey }) : null,
+    })));
   }
 
   /**
@@ -89,6 +181,136 @@ export class VerificationController {
     })));
   }
 
+  /**
+   * Approve or reject ONE document.
+   *
+   * Review was a single verdict over the whole application, so a reviewer working
+   * through four documents had nowhere to record that the first three were fine —
+   * they held it in their head, and if they were interrupted they started again.
+   *
+   * Records the verdict and nothing else: no profile status change and no message.
+   * The reviewer marks each document as they read it, then takes ONE action on the
+   * application — approve, reject, or ask for the flagged ones again — and that
+   * action is what reaches the purohit. Notifying per document would send someone
+   * three WhatsApp messages for one review.
+   */
+  @Post('pandits/:id/documents/:docId')
+  async reviewDocument(
+    @CurrentUser() actor: JwtClaims,
+    @Param('id') panditId: string,
+    @Param('docId') docId: string,
+    @Body() raw: unknown,
+  ) {
+    const body = DocumentVerdict.parse(raw);
+
+    // Scoped to this purohit: the id comes from the URL, and a reviewer must not be
+    // able to mark another purohit's document by mistyping one.
+    const hit = await this.db.update(kycRecords)
+      .set({
+        status: body.decision,
+        reviewNotes: body.notes ?? null,
+        reviewedBy: actor.sub,
+      })
+      .where(and(eq(kycRecords.id, docId), eq(kycRecords.panditId, panditId)))
+      .returning({ id: kycRecords.id, type: kycRecords.type });
+
+    if (!hit[0]) {
+      throw new DomainError(ErrorCode.NOT_FOUND, 'that document does not belong to this purohit');
+    }
+    return { id: hit[0].id, kind: hit[0].type, decision: body.decision };
+  }
+
+  /**
+   * Ask the purohit for one or more documents again.
+   *
+   * Review used to be approve-or-reject, so a reviewer who could not read a single
+   * PAN card had to reject the application — and the purohit, told only "rejected",
+   * re-uploaded all four documents to fix one. This leaves them under review, flags
+   * only what is wrong, and gives each flagged document its own reason.
+   *
+   * Not a decision, so it writes no `kyc_verified_at` and no audit `kyc.*` action of
+   * the kind approve and reject record; it is recorded as its own action.
+   */
+  @Post('pandits/:id/request-changes')
+  async requestChanges(
+    @CurrentUser() actor: JwtClaims,
+    @Param('id') panditId: string,
+    @Body() raw: unknown,
+  ) {
+    const body = ChangeRequest.parse(raw);
+    const [before] = await this.db.select().from(panditProfiles)
+      .where(eq(panditProfiles.userId, panditId)).limit(1);
+    if (!before) throw new DomainError(ErrorCode.NOT_FOUND, 'purohit not found');
+    if (before.kycStatus === 'verified') {
+      throw new DomainError(
+        ErrorCode.INVALID_TRANSITION,
+        'this purohit is already verified — reject the account instead if it must be undone',
+      );
+    }
+
+    /*
+     * Sends whatever the reviewer has already marked rejected.
+     *
+     * This used to take the flags in its own request body, which meant the verdicts
+     * lived in two places — the per-document endpoint and this one — and could
+     * disagree. The documents carry their own state now, so this reads it rather
+     * than being told it again, and the reasons the purohit gets are exactly the
+     * ones the reviewer typed against each document.
+     */
+    const rejected = await this.db.select({
+      id: kycRecords.id, type: kycRecords.type, notes: kycRecords.reviewNotes,
+    }).from(kycRecords).where(and(
+      eq(kycRecords.panditId, panditId),
+      eq(kycRecords.status, 'rejected'),
+    ));
+
+    if (rejected.length === 0) {
+      throw new DomainError(
+        ErrorCode.INVALID_TRANSITION,
+        'mark at least one document as rejected before asking for changes',
+      );
+    }
+
+    return this.db.transaction(async (tx) => {
+      const flagged = rejected.map((r) => r.id);
+
+      await tx.update(panditProfiles)
+        .set({ kycStatus: 'changes_requested' })
+        .where(eq(panditProfiles.userId, panditId));
+
+      await this.audit.record(tx, {
+        actorId: actor.sub, actorRole: actor.role,
+        action: 'pandit.kyc.changes_requested',
+        entityType: 'pandit', entityId: panditId,
+        before: { kycStatus: before.kycStatus },
+        after: { kycStatus: 'changes_requested', documents: flagged, notes: body.notes },
+      });
+
+      /*
+       * The purohit has to hear this. A request sitting unseen on a screen they have
+       * no reason to revisit is the same as no request at all — and they are the only
+       * person who can act on it.
+       */
+      await this.outbox.emit(tx, {
+        aggregateType: 'pandit', aggregateId: panditId,
+        eventType: 'pandit.kyc.changes_requested',
+        payload: {
+          documents: flagged,
+          /*
+           * The reviewer's own words, gathered from the documents themselves. A
+           * WhatsApp message has no room for a per-document list, so the reasons are
+           * joined — and the app shows them against each document when they open it.
+           */
+          notes: body.notes?.trim()
+            || rejected.map((r) => r.notes).filter(Boolean).join('; ')
+            || null,
+        },
+      });
+
+      return { panditId, kycStatus: 'changes_requested' as const, flagged };
+    });
+  }
+
   @Post('pandits/:id/verification')
   async decide(
     @CurrentUser() actor: JwtClaims,
@@ -105,11 +327,26 @@ export class VerificationController {
       await tx.update(panditProfiles).set({
         kycStatus: body.decision,
         kycVerifiedAt: body.decision === 'verified' ? now : null,
-        // Annual re-verification, per the PRD.
-        kycExpiresAt: body.decision === 'verified'
-          ? new Date(Date.now() + 365 * 86400_000).toISOString() : null,
+        /*
+         * Not written any more.
+         *
+         * This set a one-year expiry "per the PRD", and nothing ever read it — so the
+         * code looked as though annual re-verification were handled while a purohit
+         * verified once stayed verified forever. Re-verification is not a requirement
+         * of this product, so the honest thing is to stop writing a date nobody acts
+         * on rather than leave one that implies otherwise.
+         */
+        kycExpiresAt: null,
       }).where(eq(panditProfiles.userId, panditId));
 
+      /*
+       * The decision applies to every document; the NOTES do not.
+       *
+       * `reviewNotes` was set to the same string on every row, so a note about one
+       * document appeared under all of them and a rejected purohit could not tell
+       * which one to replace. The blanket note is kept for the application as a
+       * whole, and anything said about a specific document overrides it there.
+       */
       await tx.update(kycRecords).set({
         status: body.decision, reviewedBy: actor.sub, reviewNotes: body.notes ?? null,
         // Identity images are purged 30 days after a decision - we keep the reference,
@@ -117,12 +354,30 @@ export class VerificationController {
         docPurgeAfter: new Date(Date.now() + 30 * 86400_000).toISOString(),
       }).where(eq(kycRecords.panditId, panditId));
 
+      for (const [docId, note] of Object.entries(body.documentNotes ?? {})) {
+        await tx.update(kycRecords).set({ reviewNotes: note })
+          .where(and(eq(kycRecords.id, docId), eq(kycRecords.panditId, panditId)));
+      }
+
       await this.audit.record(tx, {
         actorId: actor.sub, actorRole: actor.role,
         action: `pandit.kyc.${body.decision}`,
         entityType: 'pandit', entityId: panditId,
         before: { kycStatus: before.kycStatus },
         after: { kycStatus: body.decision, notes: body.notes },
+      });
+
+      /*
+       * Tell them. Nothing did.
+       *
+       * The decision was written to the database and no message left the building, so
+       * an approved purohit found out by opening the app and a rejected one might
+       * never find out at all — on the one screen they have no reason to revisit.
+       */
+      await this.outbox.emit(tx, {
+        aggregateType: 'pandit', aggregateId: panditId,
+        eventType: `pandit.kyc.${body.decision}`,
+        payload: { notes: body.notes ?? null },
       });
 
       return { panditId, kycStatus: body.decision };

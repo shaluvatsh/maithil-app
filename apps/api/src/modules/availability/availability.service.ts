@@ -2,7 +2,7 @@ import { ulid } from 'ulid';
 import { eq, ne, and, or, gte, lte, inArray, sql } from 'drizzle-orm';
 import type { Db, Executor } from '../../db/client';
 import {
-  availability, slotDefs, panditProfiles, users, panditWeeklyPatterns,
+  availability, slotDefs, panditProfiles, users, panditWeeklyPatterns, cities,
 } from '../../db/schema/index';
 import { DomainError, ErrorCode, type IsoDate, type SlotView } from '@themaithil/contracts';
 
@@ -34,6 +34,28 @@ export class AvailabilityService {
   ) {}
 
   /**
+   * `slotInstant` needs a city SLUG to pick the right UTC offset, and everything
+   * that writes availability rows carries a city ID. Without this the slug
+   * defaulted to Kolkata's, so every materialised row in every other city was
+   * timestamped against the wrong offset — the parameter existed and no caller
+   * could reach it.
+   *
+   * Cached for the process: a city's slug never changes, and materialise runs per
+   * purohit, so re-reading it would be a query per call for a constant.
+   */
+  private readonly slugByCityId = new Map<string, string>();
+
+  private async citySlugFor(cityId: string): Promise<string> {
+    const cached = this.slugByCityId.get(cityId);
+    if (cached) return cached;
+    const row = (await this.db.select({ slug: cities.slug })
+      .from(cities).where(eq(cities.id, cityId)).limit(1))[0];
+    if (!row) throw new DomainError(ErrorCode.NOT_FOUND, 'unknown city');
+    this.slugByCityId.set(cityId, row.slug);
+    return row.slug;
+  }
+
+  /**
    * Materialise availability rows out to the booking horizon.
    *
    * Materialised rather than lazy because the FOR UPDATE lock in SlotService needs
@@ -43,8 +65,46 @@ export class AvailabilityService {
    * availability ran 60 days and panchang 90, so for a month devotees could see
    * auspicious dates with no bookable slots behind them.
    */
+  /**
+   * Declares the purohit's working hours, once, from their city's own day.
+   *
+   * Under ADR 0013 a devotee's time picker and `matchPandit` both answer "is this
+   * window inside their declared hours" from `pandit_working_hours`. A purohit with
+   * no rows there is offered at NO time at all — invisible in the picker and never
+   * matched — so onboarding has to write them or every new purohit completes the
+   * wizard into silence. Existing purohits were covered by a one-off backfill; this
+   * is the same rule, applied to everyone who signs up after it.
+   *
+   * The city's first slot start to its last slot end, on every weekday. The
+   * 30-minute gaps between the old slots are deliberately NOT carried across: they
+   * were a fixed guess at travel, and travel is now estimated per pair of bookings.
+   *
+   * Never overwrites. A purohit who has set their own hours — including night hours
+   * for a midnight Kali Puja — keeps them, and re-running this changes nothing.
+   */
+  async ensureWorkingHours(args: { panditId: string; cityId: string }): Promise<number> {
+    const res = await this.db.execute(sql`
+      WITH city_day AS (
+        SELECT MIN(start_time) AS opens, MAX(end_time) AS closes
+          FROM slot_defs WHERE city_id = ${args.cityId} AND active
+      )
+      INSERT INTO pandit_working_hours (pandit_id, weekday, starts_at, ends_at)
+      SELECT ${args.panditId}, d.weekday, cd.opens, cd.closes
+        FROM city_day cd CROSS JOIN generate_series(0, 6) AS d(weekday)
+       WHERE cd.opens IS NOT NULL
+         AND NOT EXISTS (
+           SELECT 1 FROM pandit_working_hours w WHERE w.pandit_id = ${args.panditId}
+         )
+      ON CONFLICT (pandit_id, weekday, starts_at) DO NOTHING
+      RETURNING weekday`);
+    return (((res as { rows?: unknown[] }).rows ?? res) as unknown[]).length;
+  }
+
   async materialise(args: { panditId: string; cityId: string; from?: IsoDate }): Promise<number> {
-    const start = args.from ?? today();
+    const citySlug = await this.citySlugFor(args.cityId);
+    // "Today" is also the city's, not the launch city's - the horizon must start on
+    // the purohit's own calendar day.
+    const start = args.from ?? today(citySlug);
     const defs = await this.db.select().from(slotDefs)
       .where(and(eq(slotDefs.cityId, args.cityId), eq(slotDefs.active, true)))
       .orderBy(slotDefs.idx);
@@ -63,8 +123,8 @@ export class AvailabilityService {
           slotIdx: def.idx,
           status: 'open' as const,
           source: 'default' as const,
-          startsAt: slotInstant(date, def.startTime).toISOString(),
-          endsAt: slotInstant(date, def.endTime).toISOString(),
+          startsAt: slotInstant(date, def.startTime, citySlug).toISOString(),
+          endsAt: slotInstant(date, def.endTime, citySlug).toISOString(),
         });
       }
     }
@@ -203,8 +263,11 @@ export class AvailabilityService {
     slots: Array<{ date: IsoDate; slotIdx: number }>,
     source: 'manual' | 'recurring' = 'manual',
   ): Promise<number> {
-    const defs = await this.db.select().from(slotDefs)
-      .where(and(eq(slotDefs.cityId, cityId), eq(slotDefs.active, true)));
+    const [defs, citySlug] = await Promise.all([
+      this.db.select().from(slotDefs)
+        .where(and(eq(slotDefs.cityId, cityId), eq(slotDefs.active, true))),
+      this.citySlugFor(cityId),
+    ]);
     const byIdx = new Map(defs.map((d) => [d.idx, d]));
 
     const rows = slots.flatMap((s) => {
@@ -219,8 +282,8 @@ export class AvailabilityService {
         slotIdx: s.slotIdx,
         status: 'open' as const,
         source,
-        startsAt: slotInstant(s.date, def.startTime).toISOString(),
-        endsAt: slotInstant(s.date, def.endTime).toISOString(),
+        startsAt: slotInstant(s.date, def.startTime, citySlug).toISOString(),
+        endsAt: slotInstant(s.date, def.endTime, citySlug).toISOString(),
       }];
     });
     if (rows.length === 0) return 0;

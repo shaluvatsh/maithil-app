@@ -56,6 +56,8 @@ export const patna: Region = {
     { idx: 3, start: '16:00', end: '19:00', labelKey: 'slot.evening' },
   ],
   travelGapMinutes: 30,
+  /** Smaller and flatter than Kolkata, but few through-roads. */
+  avgSpeedKmph: 18,
 
   ritualSet: 'maithil',
   era: {

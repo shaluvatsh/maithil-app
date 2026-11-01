@@ -7,29 +7,34 @@
     "build": "tsc -p tsconfig.json --noEmit && node build.mjs",
     "typecheck": "tsc -p tsconfig.test.json",
     "test": "vitest run",
-    "dev": "tsx watch src/main.ts",
+    "dev": "tsx watch --exclude '../../packages/*/dist/**' src/main.ts",
     "db:migrate": "tsx src/db/migrate.ts",
     "db:seed": "tsx src/db/seed/index.ts",
     "db:seed:dev": "tsx src/db/seed/dev.ts",
+    "db:seed:pincodes": "tsx src/db/seed/pincodes.ts",
+    "db:repair:addresses": "tsx src/db/repair-addresses.ts",
+    "db:backfill:working-hours": "tsx src/db/backfill-working-hours.ts",
     "start": "node dist/main.js",
     "predev": "pnpm --filter @themaithil/region --filter @themaithil/contracts build",
     "predb:migrate": "pnpm --filter @themaithil/region --filter @themaithil/contracts build",
     "predb:seed": "pnpm --filter @themaithil/region --filter @themaithil/contracts build",
-    "predb:seed:dev": "pnpm --filter @themaithil/region --filter @themaithil/contracts build"
+    "predb:seed:dev": "pnpm --filter @themaithil/region --filter @themaithil/contracts build",
+    "assistant:smoke": "tsx src/scripts/assistant-smoke.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.123.0",
     "@nestjs/common": "^10.4.15",
     "@nestjs/core": "^10.4.15",
     "@nestjs/platform-express": "^10.4.15",
     "@themaithil/contracts": "workspace:*",
+    "@themaithil/region": "workspace:*",
     "ioredis": "^6.0.0",
     "jsonwebtoken": "^9.0.3",
     "postgres": "^3.4.5",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
     "ulid": "^2.3.0",
-    "zod": "^3.24.1",
-    "@themaithil/region": "workspace:*"
+    "zod": "^3.24.1"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.4",

@@ -6,3 +6,6 @@ export * from './availability';
 export * from './booking';
 export * from './ledger';
 export * from './ops';
+export * from './community';
+export * from './events';
+export * from './knowledge';

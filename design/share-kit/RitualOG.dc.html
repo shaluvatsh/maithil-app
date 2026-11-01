@@ -1,0 +1,74 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Marcellus&family=Noto+Sans+Bengali:wght@400;500;600&family=Noto+Serif+Devanagari:wght@600&display=swap">
+  <style>
+    body { margin: 0; }
+    a { color: #E8A33D; } a:hover { color: #F2BE6E; }
+  </style>
+</helmet>
+
+<div style="width: 1200px; height: 630px; position: relative; overflow: hidden; background: #2A1D12; font-family: 'Noto Sans Bengali', system-ui, sans-serif;">
+
+  <!-- The ritual's own photograph, the one /pooja/[slug] already serves from
+       public/images/rituals. Right half only: the left stays flat colour so the
+       headline survives a WhatsApp thumbnail. -->
+  <img src="ritual-photo.jpg" alt="" style="position: absolute; right: 0; top: 0; width: 620px; height: 630px; object-fit: cover; object-position: 58% 42%;">
+  <div style="position: absolute; right: 0; top: 0; width: 620px; height: 630px; background: linear-gradient(90deg, #2A1D12 0%, rgba(42,29,18,0.86) 22%, rgba(42,29,18,0.18) 62%, rgba(42,29,18,0.32) 100%);"></div>
+
+  <svg width="1200" height="18" viewBox="0 0 1200 18" style="position: absolute; left: 0; top: 0; display: block;" aria-hidden="true">
+    <rect x="0" y="0" width="1200" height="5" fill="#B8862B"></rect>
+    <g fill="none" stroke="#E8A33D" stroke-width="1.5">
+      <path d="M0 17 Q 15 5 30 17 Q 45 5 60 17 Q 75 5 90 17 Q 105 5 120 17 Q 135 5 150 17 Q 165 5 180 17 Q 195 5 210 17 Q 225 5 240 17 Q 255 5 270 17 Q 285 5 300 17 Q 315 5 330 17 Q 345 5 360 17 Q 375 5 390 17 Q 405 5 420 17 Q 435 5 450 17 Q 465 5 480 17 Q 495 5 510 17 Q 525 5 540 17 Q 555 5 570 17 Q 585 5 600 17 Q 615 5 630 17 Q 645 5 660 17 Q 675 5 690 17 Q 705 5 720 17 Q 735 5 750 17 Q 765 5 780 17 Q 795 5 810 17 Q 825 5 840 17 Q 855 5 870 17 Q 885 5 900 17 Q 915 5 930 17 Q 945 5 960 17 Q 975 5 990 17 Q 1005 5 1020 17 Q 1035 5 1050 17 Q 1065 5 1080 17 Q 1095 5 1110 17 Q 1125 5 1140 17 Q 1155 5 1170 17 Q 1185 5 1200 17"></path>
+    </g>
+  </svg>
+
+  <div style="position: absolute; left: 76px; top: 88px; width: 600px; display: flex; flex-direction: column; gap: 26px;">
+
+    <div style="display: flex; align-items: center; gap: 13px;">
+      <div style="width: 46px; height: 46px; border-radius: 11px; background: #FFFBEB; display: grid; place-items: center; font-family: 'Noto Serif Devanagari', Georgia, serif; font-size: 25px; font-weight: 600; color: #C2410C; line-height: 1;">ॐ</div>
+      <div style="font-family: Marcellus, Georgia, serif; font-size: 29px; color: #FFFBEB;">TheMaithil</div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 16px;">
+      <div style="display: inline-flex; align-self: flex-start; align-items: center; gap: 9px; background: rgba(107,31,20,0.72); border: 1px solid #B8862B; border-radius: 999px; padding: 8px 18px 9px;">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#E8A33D" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M20 6 L 9 17 L 4 12"></path>
+        </svg>
+        <span style="font-size: 17px; font-weight: 600; color: #E8A33D; letter-spacing: 0.04em; text-transform: uppercase;">Verified purohit</span>
+      </div>
+
+      <div style="font-family: Marcellus, Georgia, serif; font-size: 62px; line-height: 1.1; color: #FFFBEB; text-wrap: balance;">{{ritualName}}</div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 10px; padding-top: 4px;">
+      <div style="font-size: 23px; font-weight: 500; color: #E8A33D; line-height: 1.35;">{{ritualDetail}}</div>
+      <div style="font-size: 19px; font-weight: 400; color: rgba(255,251,235,0.6); line-height: 1.4;">Kolkata · a real slot, held the moment you pay</div>
+    </div>
+  </div>
+
+  <div style="position: absolute; left: 0; bottom: 0; width: 1200px; height: 6px; background: #6B1F14;"></div>
+</div>
+</x-dc>
+
+<script data-dc-script data-props='{
+  "ritualName": {"editor": "text", "default": "Satyanarayan Puja", "section": "Ritual"},
+  "ritualDetail": {"editor": "text", "default": "3 hours at home · samagri included from ₹4,100", "section": "Ritual"}
+}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      ritualName: this.props.ritualName ?? 'Satyanarayan Puja',
+      ritualDetail: this.props.ritualDetail ?? '3 hours at home · samagri included from ₹4,100',
+    };
+  }
+}
+</script>
+</body>
+</html>

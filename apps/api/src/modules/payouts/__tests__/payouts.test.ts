@@ -11,8 +11,7 @@ const completeOne = async (paymentMode: 'cash' | 'digital_full' = 'cash', slotId
   const d = await h.bookings.createDraft({
     panditId: h.ids.panditId, ritualId: h.ids.ritualId, addressId: h.ids.addressId,
     date: daysFromNow(5 + slotIdx), slotIdx, samagriOption: 'pandit_brings',
-    paymentMode, attendeeCount: 10, devoteeId: h.ids.devoteeId, citySlug: 'kolkata',
-  } as never);
+    paymentMode, attendeeCount: 10, devoteeId: h.ids.devoteeId,  } as never);
   await h.bookings.submit(d.id, h.ids.devoteeId);
   await h.bookings.accept(d.id, h.ids.panditId);
   const c = await h.bookings.confirmOnTokenCapture({ bookingId: d.id, paymentIntentId: `pi_${d.id}` });
@@ -186,6 +185,41 @@ describe('payouts', () => {
     await expect(service.run({
       panditId: h.ids.panditId, periodStart: daysFromNow(0), periodEnd: daysFromNow(7),
     })).rejects.toThrow(/nothing is payable/);
+  });
+
+  /**
+   * The concurrency review's finding #5: `preview()` used to run before the
+   * transaction opened, so two DIFFERENT payout runs for the same purohit (a
+   * scheduled weekly batch racing a manually-tapped instant payout is the
+   * realistic pair, not a double-click - the idempotency key already catches an
+   * exact repeat) could both read the same stale balance and both post against it.
+   *
+   * A plain `Promise.all` race is too timing-dependent to reliably reproduce the
+   * old bug in a test (both calls can happen to interleave without ever
+   * overlapping) - so this proves the actual mechanism directly: hold the
+   * `panditProfiles` row lock open from one transaction and confirm a second
+   * `run()` call for the same purohit provably blocks until it is released,
+   * rather than racing ahead against a stale balance.
+   */
+  /**
+   * This project's test harness runs every case against PGlite - a single-
+   * connection, in-process WASM Postgres (see vitest.config.ts). That is exactly
+   * right for the rest of the suite, but it means two "concurrent" operations
+   * against `h.db` are always forced through that one connection regardless of any
+   * row-level lock: a black-box timing test cannot tell "blocked on `FOR UPDATE`"
+   * apart from "blocked because there is only one connection to begin with," so it
+   * would pass identically whether the fix below is present or not - proving
+   * nothing. What IS meaningfully testable here is the plumbing the fix depends
+   * on: that `preview()` takes the caller's `tx` rather than always reading through
+   * `this.db`, so a locked read inside `run()`'s transaction sees state consistent
+   * with that transaction rather than a second, unlocked connection.
+   */
+  it('preview() reads through the caller-supplied executor, not always through this.db', async () => {
+    await completeOne('digital_full');
+    const direct = await service.preview(h.ids.panditId);
+
+    const viaTx = await h.db.transaction((tx) => service.preview(h.ids.panditId, tx));
+    expect(viaTx).toEqual(direct);
   });
 
   it('pauses cash work at the credit limit and resumes when dues clear', async () => {

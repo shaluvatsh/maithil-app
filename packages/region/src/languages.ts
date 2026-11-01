@@ -1,4 +1,4 @@
-import type { Locale } from './types';
+import type { Locale, Script, NumeralSystem } from './types';
 
 /**
  * The languages a purohit can say they conduct in, and the traditions they follow.
@@ -126,3 +126,79 @@ export function languageNames(codes: readonly string[] | null | undefined): stri
 export function traditionNames(ids: readonly string[] | null | undefined): string[] {
   return (ids ?? []).map((id) => TRADITIONS.find((t) => t.id === id)?.en ?? id);
 }
+
+/**
+ * Which script a language is written in.
+ *
+ * `Region.script` answers this for a CITY, and on every marketplace surface that is
+ * enough — the whole page belongs to one region, so one font subset is downloaded
+ * and `fonts.ts` keeps its promise that a Bengaluru user never fetches a Bengali
+ * face.
+ *
+ * A community feed breaks that assumption: it is scoped nationally, so one response
+ * can carry Bengali, Devanagari and Tamil at once and the reader's region no longer
+ * describes what is on the screen. Loading all nine subsets to be safe would add
+ * hundreds of kilobytes to exactly the low-end Android devices this product depends
+ * on, so the promise has to be kept PER ITEM instead: derive the scripts actually
+ * present in a response, and load those.
+ *
+ * Keyed by `Locale`, so adding a locale to `types.ts` is a type error here until it
+ * has been given a script — the same guard `LANGUAGES` uses, for the same reason.
+ */
+export const SCRIPT_FOR_LOCALE: Readonly<Record<Locale, Script>> = {
+  bn: 'bengali',
+  hi: 'devanagari',
+  en: 'latin',
+  mai: 'devanagari',
+  ta: 'tamil',
+  te: 'telugu',
+  kn: 'kannada',
+  ml: 'malayalam',
+  gu: 'gujarati',
+  or: 'odia',
+  mr: 'devanagari',
+} as const;
+
+/**
+ * The distinct scripts a set of locales needs, deduplicated and stable.
+ *
+ * Sorted so the value is comparable between requests: it goes into a response the
+ * client caches against, and an unstable order would look like a change every time.
+ */
+export function scriptsForLocales(locales: readonly string[]): Script[] {
+  const out = new Set<Script>();
+  for (const l of locales) if (isLocale(l)) out.add(SCRIPT_FOR_LOCALE[l]);
+  return [...out].sort();
+}
+
+/**
+ * Which digits a language is written with.
+ *
+ * `Region.numerals` answers this for a CITY, and it was the right answer while the
+ * interface opened in the city's own language: Kolkata meant Bengali meant ০-৯.
+ *
+ * Once English is the default (ADR 0017) the two come apart. A reader who has the
+ * app in English in Kolkata should see "84 pranams", not "৮৪" — the region has not
+ * changed, the language has, and digits belong to the language. A reader who
+ * switches to Bengali should see ৮৪ wherever they are, including Bengaluru.
+ *
+ * So numerals follow the ACTIVE LOCALE, and `Region.numerals` remains the city's
+ * default for anything rendered without a reader — server-side formatting, a
+ * purohit-facing document, a city page with no session.
+ *
+ * Keyed by `Locale`, so a new locale in `types.ts` is a type error here until it has
+ * been given digits — the guard `LANGUAGES` and `SCRIPT_FOR_LOCALE` both use.
+ */
+export const NUMERALS_FOR_LOCALE: Readonly<Record<Locale, NumeralSystem>> = {
+  bn: 'beng',
+  hi: 'deva',
+  en: 'latn',
+  mai: 'deva',
+  ta: 'tamldec',
+  te: 'telu',
+  kn: 'knda',
+  ml: 'mlym',
+  gu: 'gujr',
+  or: 'orya',
+  mr: 'deva',
+} as const;

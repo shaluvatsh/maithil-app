@@ -8,7 +8,9 @@ import { HeroSearch } from '@/components/home/hero-search';
 import { ServiceCard } from '@/components/home/service-card';
 import { ServiceRail } from '@/components/home/service-rail';
 import { COLLECTIONS, collectionPreview } from '@/lib/collections';
+import { ritualImageVariants, ritualImagePath } from '@/lib/ritual-images';
 import { getCategory, emojiFor, aliasesFor, RITUAL_CATEGORIES } from '@themaithil/region';
+import { computePrice } from '@themaithil/contracts';
 import { CategoryCardSkeletons } from '@/components/skeletons';
 import { PanchangCard, type PanchangDay } from '@/components/home/panchang-sections';
 import { usePanchangSchool } from '@/lib/panchang-school';
@@ -156,19 +158,39 @@ export default function Home() {
 
 
   /**
-   * Rounded to the whole rupee, not just displayed that way.
+   * The card price, from the engine that bills it.
    *
-   * This returned raw paise, so a card read "₹5,207.2" — a price carrying a tenth
-   * of a rupee, beside a category tile reading a clean "5 services". Rounding at
-   * the formatter alone would leave the number and the string disagreeing; this
-   * makes the figure itself a rupee amount.
+   * This was `(defaultPaise + bomTotalPaise * 1.05) * 1.15` — the same hand-rolled
+   * formula `/book` already replaced with `computePrice`, and for the same reason:
+   * it applies the 15% commission to the samagri, which the engine deliberately
+   * does not. Samagri is passed through to the purohit in full and commission is
+   * charged on the service only, so this overstated every card carrying materials
+   * by 3–6%. A Satyanarayan Puja read ₹3,150 here and ₹2,964 one click later.
+   *
+   * Travel is zero because no address is known yet, so the figure is a floor — the
+   * card says "from", which is the honest word for it.
+   *
+   * Rounded to the whole rupee: this used to return raw paise, so a card read
+   * "₹5,207.2" beside a tile reading a clean "5 services".
    */
-  const total = (r: Ritual) =>
-    Math.round((r.priceBand.defaultPaise + r.bomTotalPaise * 1.05) * 1.15 / 100) * 100;
+  const total = (r: Ritual) => {
+    const virtual = r.deliveryMode === 'virtual';
+    return Math.round(computePrice({
+      dakshinaBasePaise: r.priceBand.defaultPaise as never,
+      bomTotalPaise: r.bomTotalPaise as never,
+      travelFeePaise: 0 as never,
+      surgeBps: 10_000,
+      samagriOption: virtual ? 'none' : 'pandit_brings',
+      paymentMode: virtual ? 'digital_full' : 'cash',
+    }).totalPaise / 100) * 100;
+  };
 
 
   /** A service wears its category's colour, the same one the tile above uses. */
   const tintOf = (r: Ritual) => getCategory(r.category)?.tint;
+  // See lib/ritual-images.ts — shared with /book so the two never drift.
+  const imageVariantOf = useMemo(() => ritualImageVariants(rituals), [rituals]);
+  const imageOf = (r: Ritual) => ritualImagePath(r, imageVariantOf);
 
   return (
     <>
@@ -250,12 +272,24 @@ export default function Home() {
             </div>
           </div>
 
+          {/*
+            Two audiences, two messages. A devotee needs to know the list is
+            missing and what to do about it; the raw fetch error and the migrate
+            command are for whoever can act on them, and on a developer's machine
+            that is nearly always the actual cause. Printing `pnpm db:migrate` to
+            a family looking for a naming ceremony is neither.
+          */}
           {catError && (
-            <div className="notice err" style={{ maxWidth: 620, marginBottom: 22 }}>
-              <strong>Categories could not be loaded.</strong> {catError}
-              <div className="muted" style={{ fontSize: '.88rem', marginTop: 6 }}>
-                Run <code>pnpm db:migrate &amp;&amp; pnpm db:seed</code>, then refresh.
-              </div>
+            <div className="notice err" style={{ maxWidth: 620, marginBottom: 22 }} role="alert">
+              <strong>Services could not be loaded.</strong>{' '}
+              Please refresh in a moment — or{' '}
+              <Link href="/contact">tell us</Link> and we will book it for you.
+              {process.env.NODE_ENV !== 'production' && (
+                <div className="muted" style={{ fontSize: '.88rem', marginTop: 6 }}>
+                  {catError} — usually a pending migration. Run{' '}
+                  <code>pnpm db:migrate &amp;&amp; pnpm db:seed</code>, then refresh.
+                </div>
+              )}
             </div>
           )}
 
@@ -266,7 +300,12 @@ export default function Home() {
             {catsPending && <CategoryCardSkeletons count={RITUAL_CATEGORIES.length} />}
             {!catsPending && categories.map((c) => (
               <Link href={`/book?category=${c.id}`} key={c.id} className="cat-card">
-                <div className="tile" style={{ background: c.tint }}>{c.emoji}</div>
+                {/* A photo at 64px, not upscaled — the source is preview-
+                    resolution (~175px), so shown SMALLER than native it
+                    comes out sharp rather than soft. */}
+                <div className="tile has-photo">
+                  <img src={`/images/categories/${c.id}.jpg`} alt="" loading="lazy" />
+                </div>
                 <div className="name">{c.en}</div>
                 <div className="desc">{c.blurb}</div>
                 <div className="count">{c.count} service{c.count === 1 ? '' : 's'}</div>
@@ -293,9 +332,10 @@ export default function Home() {
           <ServiceCard
             key={r.id}
             service={r}
-            price={money(total(r))}
+            price={`from ${money(total(r))}`}
             emoji={emojiFor(r.slug)}
             tint={tintOf(r)}
+            image={imageOf(r)}
             badges={[{ text: 'Popular', kind: 'pop' }]}
             // There was a second chip here reading "15% OFF", generated from a hash
             // of the slug. There is no discount in the pricing engine and no MRP to
@@ -335,9 +375,10 @@ export default function Home() {
             <ServiceCard
               key={r.id}
               service={r}
-              price={money(total(r))}
+              price={`from ${money(total(r))}`}
               emoji={emojiFor(r.slug)}
               tint={tintOf(r)}
+              image={imageOf(r)}
               tone="cool"
               badges={[
                 { text: 'NEW', kind: 'new', side: 'l' },
@@ -367,9 +408,10 @@ export default function Home() {
           <ServiceCard
             key={r.id}
             service={r}
-            price={money(total(r))}
+            price={`from ${money(total(r))}`}
             emoji={emojiFor(r.slug)}
             tint={tintOf(r)}
+            image={imageOf(r)}
             badges={[{ text: 'Popular', kind: 'pop' }]}
             chips={[{ text: 'Ceremony' }]}
             meta={[`⏱ ${Math.round(r.durationMin / 60)} to ${Math.round(r.durationMin / 60) + 2} hours`]}

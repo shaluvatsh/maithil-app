@@ -1,5 +1,5 @@
 import {
-  pgTable, text, integer, bigint, date, timestamp, boolean, jsonb,
+  pgTable, text, integer, bigint, date, timestamp, jsonb,
   index, uniqueIndex,
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
@@ -43,7 +43,11 @@ export const bookings = pgTable('bookings', {
   language: text('language').notNull().default('bn'),
   tradition: text('tradition'),
   attendeeCount: integer('attendee_count').notNull().default(10),
-  sankalp: jsonb('sankalp'),                  // { name, gotra }
+  // Retired: the family name/gotra used to be captured here (by the purohit, at
+  // `start`). Nothing reads or writes this column any more — it is personal
+  // information the app decided not to hold — so it is left in place only to
+  // avoid a migration against old rows, never populated going forward.
+  sankalp: jsonb('sankalp'),
 
   samagriOption: samagriOptionEnum('samagri_option').notNull().default('pandit_brings'),
   bomSnapshot: jsonb('bom_snapshot'),         // frozen at confirmation
@@ -63,6 +67,25 @@ export const bookings = pgTable('bookings', {
   cancelledAt: ts('cancelled_at'),
   cancelReason: text('cancel_reason'),
 
+  /**
+   * REMOTE delivery, for the two rituals the catalogue sells as `virtual`.
+   *
+   * `joinUrl` is the purohit's own meeting link, set once the booking is confirmed;
+   * `recordingUrl` is the proof of performance they attach at completion. Both are
+   * null for an at-home puja, which needs neither — the family was in the room.
+   */
+  joinUrl: text('join_url'),
+  recordingUrl: text('recording_url'),
+
+  /**
+   * When a later day of a multi-day series had its start code issued and sent.
+   *
+   * Null on day one and on every single-day booking — those get their codes at
+   * confirmation. See `SeriesCodesJob`, which uses this rather than a
+   * `notifications` lookup because sending also rewrites `start_otp_hash`.
+   */
+  seriesCodesSentAt: ts('series_codes_sent_at'),
+
   cashCollectedPaise: bigint('cash_collected_paise', { mode: 'number' }),
   /** Set when an offline capture is awaiting server-side OTP validation. ADR: never settles. */
   offlineCaptureAt: ts('offline_capture_at'),
@@ -76,6 +99,21 @@ export const bookings = pgTable('bookings', {
   panditIdx: index('bookings_pandit_idx').on(t.panditId, t.state),
   slotStartIdx: index('bookings_slot_start_idx').on(t.slotStartAt),
   stateIdx: index('bookings_state_idx').on(t.state, t.slotStartAt),
+  /*
+   * TWO GiST INDEXES ON THIS TABLE LIVE IN SQL, NOT HERE, because Drizzle cannot
+   * express an expression index over `tstzrange(...)`:
+   *
+   * - `bookings_pandit_no_overlap` (0018) — the EXCLUSION CONSTRAINT that makes
+   *   double-booking impossible. Predicate: `confirmed`/`in_progress` only, which is
+   *   the integrity rule and must stay narrow; a `pending_accept` hold blocking the
+   *   slot would let an abandoned checkout freeze it until expiry.
+   * - `bookings_pandit_window_idx` (0031) — for READING availability, over the four
+   *   states `BookableTimesService` and `SearchService` actually test. Without it the
+   *   range degrades to an executor Filter over a purohit's whole history.
+   *
+   * If you change either overlap predicate in those services, change that index with
+   * it, or the window silently stops being a seek.
+   */
 }));
 
 /** Append-only audit spine. Every transition writes here, in the same transaction. */

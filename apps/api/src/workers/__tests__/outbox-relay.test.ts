@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { eq, isNull } from 'drizzle-orm';
+import { isNull, sql } from 'drizzle-orm';
 import { makeHarness, type Harness } from '../../test/harness';
 import { outbox } from '../../db/schema/index';
 import { OutboxRelay, LoggingPublisher, type EventPublisher } from '../outbox-relay';
@@ -61,5 +61,48 @@ describe('outbox relay', () => {
     const second = await h.outbox.claimForConsumer(h.db, 'notifications', 'EVT1');
     const other = await h.outbox.claimForConsumer(h.db, 'ledger-projection', 'EVT1');
     expect([first, second, other]).toEqual([true, false, true]);
+  });
+
+  /**
+   * The property the whole claim/lease redesign exists to preserve without holding
+   * a transaction open across publish(): two relay instances racing the same rows
+   * must still never both deliver the same event. `claimBatch` now commits and
+   * releases its connection immediately, so this is exercised by actually racing
+   * two `drainOnce()` calls rather than by inspecting lock state.
+   */
+  it('never double-publishes when two relay instances race the same batch', async () => {
+    await seed(20);
+    const pubA = new LoggingPublisher();
+    const pubB = new LoggingPublisher();
+    const relayA = new OutboxRelay(h.db, h.outbox, pubA);
+    const relayB = new OutboxRelay(h.db, h.outbox, pubB);
+
+    const [countA, countB] = await Promise.all([relayA.drainOnce(), relayB.drainOnce()]);
+    expect(countA + countB).toBe(20);
+
+    const seen = [...pubA.seen, ...pubB.seen].map((e) => e.aggregateId);
+    expect(new Set(seen).size).toBe(20);   // every event delivered exactly once
+
+    const pending = await h.db.select().from(outbox).where(isNull(outbox.publishedAt));
+    expect(pending).toHaveLength(0);
+  });
+
+  it('reclaims a batch whose claimant never marked it published, once the lease is stale', async () => {
+    await seed(1);
+    // Simulate a crash mid-batch: claim it, but never publish or mark it.
+    const abandoned = await h.outbox.claimBatch(h.db, 10);
+    expect(abandoned).toHaveLength(1);
+
+    const pub = new LoggingPublisher();
+    const relay = new OutboxRelay(h.db, h.outbox, pub);
+    // The lease has not gone stale yet - nothing to claim.
+    expect(await relay.drainOnce()).toBe(0);
+
+    // Backdate the lease past the visibility timeout, as if it were claimed a while ago.
+    await h.db.execute(
+      sql`UPDATE "outbox" SET claimed_at = now() - interval '1 minute' WHERE id = ${abandoned[0]!.id}`,
+    );
+    expect(await relay.drainOnce()).toBe(1);
+    expect(pub.seen).toHaveLength(1);
   });
 });

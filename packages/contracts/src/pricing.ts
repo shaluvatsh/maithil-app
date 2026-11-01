@@ -10,8 +10,9 @@ import type { PaymentMode, SamagriOption } from './enums.js';
  * The purohit receives dakshina + samagri + travel in full.
  *
  * That is what makes cash safe and the token arithmetic trivial:
- *   token (online, always) = platform fee + kit value
- *   cash balance (to purohit) = dakshina + samagri + travel
+ *   token (cash / token+balance) = platform fee + kit value
+ *   token (digital_full)         = the whole total — see `computePrice`
+ *   cash balance (to purohit)    = dakshina + samagri + travel
  * The purohit is never asked to remit anything, so commission cannot leak.
  */
 
@@ -37,6 +38,29 @@ export interface PriceInput {
   promoDiscountPaise?: Paise;
   /** Partner kit value. Always zero in R1 (kits are out of scope - ADR 0008). */
   kitValuePaise?: Paise;
+  /**
+   * Whether this deployment can take money online at all (`PAYMENTS_ENABLED`).
+   *
+   * Defaults to TRUE, so every existing caller and every existing test keeps the
+   * behaviour it already had, and a deployment has to say out loud that it cannot
+   * charge anybody.
+   *
+   * When false there is no gateway to charge, so the token is ZERO and the whole
+   * total is collected in cash by the purohit on the day. That is the honest
+   * arithmetic rather than a token nobody can pay.
+   *
+   * READ THE REVENUE CONSEQUENCE BEFORE TURNING THIS OFF. The model at the top of
+   * this file puts the platform fee INSIDE the token, precisely so the purohit is
+   * never asked to remit anything and commission cannot leak. With no token there
+   * is no commission: `planSettlement`'s cash branch releases it only
+   * `if (price.tokenPaise > 0)`, so every booking taken in this mode earns the
+   * platform exactly nothing. Nothing is lost or mis-posted — the ledger stays
+   * balanced and the purohit's TDS base stays correct — but the fee is not charged
+   * and no due is recorded against it. Collecting in arrears would mean setting
+   * `feeShortfallPaise`, which is a commercial decision about what purohits were
+   * told, not an arithmetic one.
+   */
+  paymentsEnabled?: boolean;
 }
 
 export interface PriceBreakdown {
@@ -46,9 +70,12 @@ export interface PriceBreakdown {
   platformFeePaise: Paise;
   discountPaise: Paise;
   totalPaise: Paise;
-  /** Charged online at confirmation, in every payment mode without exception. */
+  /**
+   * Charged online at confirmation, in every payment mode without exception. In
+   * `digital_full` this IS the total, so nothing is left to collect afterwards.
+   */
   tokenPaise: Paise;
-  /** Cash or auto-charge at completion. total - token. */
+  /** What is still owed on the day: cash to the purohit. Zero in `digital_full`. */
   balancePaise: Paise;
   /** Platform fee we failed to collect because a promo ate it. Becomes a cash_due. */
   feeShortfallPaise: Paise;
@@ -82,7 +109,39 @@ export function computePrice(input: PriceInput): PriceBreakdown {
 
   const kitValue = input.kitValuePaise ?? ZERO;
   const total = sub(add(dakshina, samagri, travel, grossFee), discount);
-  const token = add(platformFee, kitValue);
+
+  /*
+   * FULLY DIGITAL MEANS FULLY. The token is the whole amount, not the fee.
+   *
+   * This built the token from the platform fee in every mode, so `digital_full` —
+   * the mode whose UI button says "Pay fully online" — charged only the commission
+   * up front and left `balancePaise` to be "charged when the puja is done". Nothing
+   * charges it: there is no balance payment intent anywhere, and the enum value for
+   * one has never had a producer.
+   *
+   * The consequence is not a missing feature, it is a hole in the books.
+   * `planSettlement`'s digital branch pays the purohit out of escrow on the stated
+   * assumption that "the full amount sits in escrow" — so escrow was debited
+   * `dakshina + samagri + travel` that was never credited to it, and the purohit was
+   * credited money no devotee had paid. Measured on a live booking: ₹56.88 in, ₹474
+   * out, every time.
+   *
+   * Charging the total here closes it exactly, with no second capture to build:
+   * escrow receives `total`, and settlement debits `platformFee + panditGross`,
+   * which IS `total` by construction. The balance falls to zero, which is what
+   * "paid fully online" should have meant all along.
+   */
+  /*
+   * No gateway means no token. `digital_full` cannot occur in this mode — booking
+   * creation refuses it — but the branch is ordered so that even if one slipped
+   * through it collects nothing online rather than demanding the entire total
+   * through a checkout that does not exist.
+   */
+  const token = input.paymentsEnabled === false
+    ? ZERO
+    : input.paymentMode === 'digital_full'
+      ? total
+      : add(platformFee, kitValue);
   const balance = sub(total, token);
 
   return {

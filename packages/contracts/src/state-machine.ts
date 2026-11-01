@@ -12,6 +12,7 @@ export type BookingTrigger =
   | 'pandit_decline'
   | 'accept_window_expired'
   | 'token_captured'
+  | 'confirmed_unpaid'
   | 'start_otp_verified'
   | 'complete_otp_verified'
   | 'cancel_devotee'
@@ -26,6 +27,12 @@ export type BookingTrigger =
    * It exists in this union so the audit row can name it honestly.
    */
   | 'pandit_substituted'
+  /**
+   * The date/slot changed; the booking did not move state. Same reasoning as
+   * `pandit_substituted` - a reschedule is an audit fact about WHEN, not a
+   * transition, so it has no `from`/`to` pair in the table below either.
+   */
+  | 'rescheduled'
   | 'review_window_closed';
 
 export interface Transition {
@@ -48,6 +55,27 @@ export const TRANSITIONS: readonly Transition[] = [
 
   { from: 'pending_accept', trigger: 'token_captured', to: 'confirmed',
     guards: ['pandit_accepted', 'payment_captured', 'slot_still_open'],
+    emits: ['booking.confirmed'] },
+
+  /*
+   * Confirming with no money taken, for a deployment running without a payment
+   * gateway (`PAYMENTS_ENABLED=false`): the whole amount is cash to the purohit.
+   *
+   * A TRIGGER OF ITS OWN, deliberately, rather than relaxing `payment_captured` on
+   * `token_captured`. Two reasons, and both matter more than the extra line:
+   *
+   * 1. `booking_events` is the audit spine, written in the same transaction as
+   *    every transition. A distinct trigger means each booking carries a permanent,
+   *    per-row record of WHY it confirmed without a payment. When the gateway is
+   *    switched on, "which bookings were taken on trust" is a query rather than an
+   *    inference from dates.
+   * 2. Widening `payment_captured` would make "confirmed without money" reachable
+   *    from the ordinary paid path the moment a guard was mis-evaluated. The guard
+   *    here is the flag itself, so this transition cannot fire while payments are
+   *    on, however the service is called.
+   */
+  { from: 'pending_accept', trigger: 'confirmed_unpaid', to: 'confirmed',
+    guards: ['pandit_accepted', 'payments_disabled', 'slot_still_open'],
     emits: ['booking.confirmed'] },
 
   { from: 'pending_accept', trigger: 'pandit_decline', to: 'expired',

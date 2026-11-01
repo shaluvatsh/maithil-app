@@ -1,7 +1,7 @@
 # The Maithil
 
 Two-sided marketplace connecting verified purohits with devotees for Hindu rituals.
-**Launch city: Kolkata.** Bengali-first.
+**Launch city: Kolkata.** Pan-India by design, English by default, Bengali and Hindi one tap away.
 
 This repository implements the *revised* architecture — see `docs/adr/` for what changed
 from the original handoff and why. The short version:
@@ -14,6 +14,8 @@ from the original handoff and why. The short version:
 | Bookings occupy a contiguous slot *span*, with absolute timestamps | [0006](docs/adr/0006-slot-model.md) |
 | Free-tier hosting; AWS deferred until it hurts | [0007](docs/adr/0007-hosting.md) |
 | R1 scope cut for a 1–2 engineer team | [0008](docs/adr/0008-r1-scope.md) |
+| Community is its own context; events are not bookings | [0014](docs/adr/0014-community-bounded-context.md), [0015](docs/adr/0015-events-are-not-bookings.md) |
+| The UI opens in English everywhere; the reader picks their language | [0017](docs/adr/0017-english-by-default.md) |
 
 ## Quick start
 
@@ -36,12 +38,15 @@ store. Redis only backs slot holds and OTP rate limits.
 
 ```bash
 pnpm typecheck    # tsc across the workspace
-pnpm test         # 160 tests; the integration suites run a real Postgres engine
+pnpm test         # 899 tests; the integration suites run a real Postgres engine
 ```
 
-No Docker needed for tests. The integration suites boot Postgres 18 compiled to
+No Docker needed for tests. The integration suites boot Postgres compiled to
 WebAssembly in-process, so they exercise the same triggers, exclusion constraints and
 transaction semantics production relies on.
+
+To see a change in the running app rather than in a test, use the browser driver in
+[`scripts/e2e/`](scripts/e2e/README.md).
 
 ## Layout
 
@@ -57,8 +62,14 @@ apps/api
   src/db/seed/            Kolkata catalogue
   src/test/harness.ts     full stack over Postgres-in-wasm
 packages/contracts        zod schemas, money type, state machine — the shared truth
+packages/region           what a city is: slots, panjikas, currency, coordinates
+scripts/e2e/              Playwright driver for running the real app in a browser
 docs/adr/                 architecture decision records
 ```
+
+**Start here:** [`CONTRIBUTING.md`](CONTRIBUTING.md) for the rules a change has to meet
+and the local-dev gotchas, [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for how the
+system is put together and what is still open.
 
 ## The three things to understand first
 
@@ -101,11 +112,14 @@ with dues recovery and carried TDS · **panchang computed from astronomy**, no v
 **reviews** (double-blind, feeding search rank) · **admin verification queue** ·
 security headers, rate limiting, request IDs, graceful shutdown · Docker, Fly and CI.
 
-**Not yet built**: the two mobile apps · samagri partner kits · e-puja · subscriptions
-and referrals · GST invoice PDFs.
+**Not yet built**: the two mobile apps · video links for virtual bookings · token
+revocation · samagri partner kits · e-puja · subscriptions and referrals · GST invoice
+PDFs.
 
 **Read [`docs/PRODUCTION.md`](docs/PRODUCTION.md) before taking real money** — four
-things block go-live, and two of them are legal rather than technical.
+things block go-live, and two of them are legal rather than technical. Open engineering
+gaps are tracked in
+[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md#known-gaps).
 
 ### One bug worth knowing about
 

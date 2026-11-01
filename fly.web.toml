@@ -1,0 +1,57 @@
+# The web app. Separate Fly app from the API, deployed from the same repo.
+#
+# WHY TWO APPS RATHER THAN ONE. They scale on different things and fail in different
+# ways: the API holds the outbox relay and the scheduler and must never stop, while
+# the web tier is stateless and can be restarted freely. Putting both in one machine
+# would also mean a frontend typo takes the booking engine down with it.
+#
+# Mumbai, like the API — a request that crosses an ocean to reach an API in bom is a
+# request that renders slowly for no reason. See ADR 0007.
+app = "themaithil-web"
+primary_region = "bom"
+
+[build]
+  dockerfile = "apps/web/Dockerfile"
+
+  [build.args]
+    # BAKED INTO THE JAVASCRIPT AT BUILD TIME, not read at runtime — that is what the
+    # `NEXT_PUBLIC_` prefix means. Setting it under [env] below would do nothing at
+    # all: the browser bundle would keep the `http://localhost:3000` fallback from
+    # lib/api.ts, and every production page would fail to reach the API in a way that
+    # looks exactly like the API being down.
+    NEXT_PUBLIC_API_URL = "https://themaithil-api.fly.dev"
+
+[env]
+  NODE_ENV = "production"
+  PORT = "3001"
+  # Next's standalone server defaults to listening on localhost, which inside a
+  # container is an interface nothing outside it can reach. Every health check would
+  # time out while the process looked perfectly healthy in the logs.
+  HOSTNAME = "0.0.0.0"
+
+[http_service]
+  internal_port = 3001
+  force_https = true
+  # Stateless and holds no background work, so unlike the API this may scale to zero
+  # between requests. One machine stays warm so the first visitor of the morning does
+  # not pay the cold start.
+  auto_stop_machines = true
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [[http_service.checks]]
+    grace_period = "10s"
+    interval = "30s"
+    method = "GET"
+    # The home page, because there is no dedicated health route and inventing one
+    # would check less: this exercises the real render path, including the almanac
+    # fetch, rather than a handler that returns ok regardless.
+    path = "/"
+    timeout = "5s"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"
+
+# No secrets. Everything this app needs is public by construction — it is a browser
+# bundle — and anything that is not belongs behind the API.

@@ -4,6 +4,7 @@ import { makeHarness, type Harness } from '../../../test/harness';
 import { panditProfiles, kycRecords } from '../../../db/schema/index';
 import { PurohitKycController } from '../kyc.controller';
 import { InMemoryObjectStore } from '../../storage/object-store';
+import { ErrorCode } from '@themaithil/contracts';
 
 let h: Harness;
 let store: InMemoryObjectStore;
@@ -32,7 +33,9 @@ beforeEach(async () => {
 afterEach(async () => { await h?.pg.close(); });
 
 /** Upload a document end to end, the way the browser does it. */
-const attach = async (kind: 'identity' | 'credential' = 'identity', last4?: string) => {
+type DocKind = 'identity' | 'address' | 'pan' | 'qualification' | 'credential' | 'demo' | 'bank';
+
+const attach = async (kind: DocKind = 'identity', last4?: string) => {
   const signed = await kyc.uploadUrl(asPurohit(), { kind, contentType: 'image/jpeg' });
   return kyc.attach(asPurohit(), {
     kind, docKey: signed.key, ...(last4 ? { identifierLast4: last4 } : {}),
@@ -60,8 +63,23 @@ describe('a purohit can finally submit identity documents', () => {
     expect(rows[0]!.docKey).toMatch(new RegExp(`^kyc/${h.ids.panditId}/identity-`));
   });
 
+  /**
+   * Everything a review needs, not just a photo ID — and the qualification the
+   * certificate is meant to prove, which a reviewer cannot infer from the image.
+   */
+  const completeApplication = async () => {
+    for (const k of ['identity', 'address', 'pan', 'qualification'] as const) await attach(k);
+    await kyc.setQualification(asPurohit(), { level: 'graduate' });
+    await setPhoto();
+  };
+
+  /** The face a family sees — required, because the devotee does not choose. */
+  const setPhoto = () => h.db.update(panditProfiles)
+    .set({ photoKey: `profile/${h.ids.panditId}/photo-x.jpg` })
+    .where(eq(panditProfiles.userId, h.ids.panditId));
+
   it('moves the account into the previously unreachable submitted state', async () => {
-    await attach('identity');
+    await completeApplication();
     expect(await kyc.submit(asPurohit())).toEqual({ status: 'submitted' });
 
     const [p] = await h.db.select({ status: panditProfiles.kycStatus })
@@ -88,11 +106,72 @@ describe('a purohit can finally submit identity documents', () => {
   });
 
   it('reports progress so the screen never has to infer it', async () => {
-    expect((await kyc.status(asPurohit())).hasIdentity).toBe(false);
+    const before = await kyc.status(asPurohit());
+    expect(before.canSubmit).toBe(false);
+    expect(before.missing).toEqual(['identity', 'address', 'pan', 'qualification']);
+    expect(before.needsQualification).toBe(true);
+
     await attach('identity');
+    const partway = await kyc.status(asPurohit());
+    expect(partway.missing).toEqual(['address', 'pan', 'qualification']);
+    expect(partway.documents).toHaveLength(1);
+    expect(partway.canSubmit).toBe(false);
+
+    await completeApplication();
+    const done = await kyc.status(asPurohit());
+    expect(done.missing).toEqual([]);
+    expect(done.canSubmit).toBe(true);
+    expect(done.highestQualification).toBe('graduate');
+  });
+
+  /**
+   * The purohit must be told WHICH document is outstanding. "Your application is
+   * incomplete" sends someone hunting through four upload tiles to find out.
+   */
+  it('names every document still missing', async () => {
+    await attach('identity');
+    await expect(kyc.submit(asPurohit())).rejects.toMatchObject({
+      code: ErrorCode.KYC_INCOMPLETE,
+      meta: { missing: ['address', 'pan', 'qualification'] },
+    });
+  });
+
+  /**
+   * A certificate with no claim attached tells a reviewer nothing — they would be
+   * looking at a document without knowing what it is meant to prove.
+   */
+  it('refuses to submit a certificate with no qualification claimed', async () => {
+    for (const k of ['identity', 'address', 'pan', 'qualification'] as const) await attach(k);
+    // Everything else in place, so this isolates the qualification rule.
+    await setPhoto();
+    await expect(kyc.submit(asPurohit())).rejects.toMatchObject({
+      code: ErrorCode.KYC_INCOMPLETE,
+      meta: { missing: ['highestQualification'] },
+    });
+  });
+
+  /**
+   * The face a family sees before they let someone into their home.
+   *
+   * The booking screen rendered the first letter of the purohit's name in a circle,
+   * and `photoUrl` had been on the search contract since the first commit with
+   * `null` hardcoded into it. Since ADR 0012 the devotee does not choose their
+   * purohit, so that letter was the only thing they saw before the door opened.
+   */
+  it('refuses to submit without a photo of the purohit', async () => {
+    for (const k of ['identity', 'address', 'pan', 'qualification'] as const) await attach(k);
+    await kyc.setQualification(asPurohit(), { level: 'graduate' });
+
+    await expect(kyc.submit(asPurohit())).rejects.toMatchObject({
+      code: ErrorCode.KYC_INCOMPLETE,
+      meta: { missing: ['photo'] },
+    });
+    expect((await kyc.status(asPurohit())).needsPhoto).toBe(true);
+
+    await setPhoto();
     const after = await kyc.status(asPurohit());
-    expect(after.hasIdentity).toBe(true);
-    expect(after.documents).toHaveLength(1);
+    expect(after.needsPhoto).toBe(false);
+    expect(after.canSubmit).toBe(true);
   });
 });
 
@@ -186,6 +265,11 @@ describe('uploads', () => {
     })).rejects.toThrow(/already verified/i);
   });
 
+  /**
+   * A purohit verified before these rules existed — or one whose document images
+   * have since been purged (ADR 0010) — must not be told to upload four documents
+   * to re-enter a state they are already in.
+   */
   it('leaves a verified purohit verified if submit is called again', async () => {
     await attach('identity');
     await h.db.update(panditProfiles).set({ kycStatus: 'verified' })

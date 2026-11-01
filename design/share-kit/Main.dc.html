@@ -1,0 +1,80 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Marcellus&family=Noto+Sans+Bengali:wght@400;500;600&family=Noto+Serif+Devanagari:wght@600&display=swap">
+  <style>
+    body { margin: 0; }
+    a { color: #E8A33D; } a:hover { color: #F2BE6E; }
+  </style>
+</helmet>
+
+<div style="width: 1200px; height: 630px; position: relative; overflow: hidden; background: #2A1D12; font-family: 'Noto Sans Bengali', system-ui, sans-serif;">
+
+  <!-- Flame glow. The hero photograph is lit by a single flame low in the frame;
+       this is that light, not a decorative gradient. -->
+  <div style="position: absolute; left: 620px; top: 200px; width: 900px; height: 900px; transform: translate(-50%, -50%); background: radial-gradient(circle, rgba(232,163,61,0.20) 0%, rgba(184,134,43,0.07) 42%, rgba(42,29,18,0) 68%); pointer-events: none;"></div>
+
+  <!-- Mithila petal band. Madhubani border vocabulary, one hairline weight. -->
+  <svg width="1200" height="18" viewBox="0 0 1200 18" style="position: absolute; left: 0; top: 0; display: block;" aria-hidden="true">
+    <rect x="0" y="0" width="1200" height="5" fill="#B8862B"></rect>
+    <g fill="none" stroke="#E8A33D" stroke-width="1.5">
+      <path d="M0 17 Q 15 5 30 17 Q 45 5 60 17 Q 75 5 90 17 Q 105 5 120 17 Q 135 5 150 17 Q 165 5 180 17 Q 195 5 210 17 Q 225 5 240 17 Q 255 5 270 17 Q 285 5 300 17 Q 315 5 330 17 Q 345 5 360 17 Q 375 5 390 17 Q 405 5 420 17 Q 435 5 450 17 Q 465 5 480 17 Q 495 5 510 17 Q 525 5 540 17 Q 555 5 570 17 Q 585 5 600 17 Q 615 5 630 17 Q 645 5 660 17 Q 675 5 690 17 Q 705 5 720 17 Q 735 5 750 17 Q 765 5 780 17 Q 795 5 810 17 Q 825 5 840 17 Q 855 5 870 17 Q 885 5 900 17 Q 915 5 930 17 Q 945 5 960 17 Q 975 5 990 17 Q 1005 5 1020 17 Q 1035 5 1050 17 Q 1065 5 1080 17 Q 1095 5 1110 17 Q 1125 5 1140 17 Q 1155 5 1170 17 Q 1185 5 1200 17"></path>
+    </g>
+  </svg>
+
+  <!-- Content column. Everything a WhatsApp thumbnail must still resolve lives
+       left of 720px, so the diya can crop without losing the message. -->
+  <div style="position: absolute; left: 76px; top: 92px; width: 660px; display: flex; flex-direction: column; gap: 30px;">
+
+    <div style="display: flex; align-items: center; gap: 16px;">
+      <div style="width: 62px; height: 62px; border-radius: 15px; background: #FFFBEB; display: grid; place-items: center; font-family: 'Noto Serif Devanagari', Georgia, serif; font-size: 34px; font-weight: 600; color: #C2410C; line-height: 1;">ॐ</div>
+      <div style="font-family: Marcellus, Georgia, serif; font-size: 40px; color: #FFFBEB; letter-spacing: 0.005em;">TheMaithil</div>
+    </div>
+
+    <div style="font-family: Marcellus, Georgia, serif; font-size: 68px; line-height: 1.14; color: #FFFBEB; text-wrap: balance;">A verified purohit,<br>at your door.</div>
+
+    <div style="display: flex; flex-direction: column; gap: 12px;">
+      <div style="font-size: 25px; font-weight: 500; color: #E8A33D; line-height: 1.35;">Kolkata · booked to your family's panjika</div>
+      <div style="font-size: 21px; font-weight: 400; color: rgba(255,251,235,0.62); line-height: 1.4;">যাচাই করা পুরোহিত · কলকাতা</div>
+    </div>
+  </div>
+
+  <!-- Diya. Drawn rather than photographed: it has to hold at 32px in a
+       notification and at 1200px in a browser preview. -->
+  <svg width="392" height="392" viewBox="0 0 200 200" style="position: absolute; right: 62px; top: 119px;" aria-hidden="true">
+    <defs>
+      <linearGradient id="og-flame" x1="0" y1="1" x2="0" y2="0">
+        <stop offset="0%" stop-color="#C2410C"></stop>
+        <stop offset="48%" stop-color="#E8A33D"></stop>
+        <stop offset="100%" stop-color="#FFF3D4"></stop>
+      </linearGradient>
+      <linearGradient id="og-bowl" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%" stop-color="#D9A64A"></stop>
+        <stop offset="52%" stop-color="#B8862B"></stop>
+        <stop offset="100%" stop-color="#7C5716"></stop>
+      </linearGradient>
+    </defs>
+
+    <ellipse cx="100" cy="176" rx="74" ry="9" fill="#E8A33D" opacity="0.14"></ellipse>
+
+    <!-- flame -->
+    <path d="M100 40 C 116 66 128 80 128 100 C 128 120 115 133 100 133 C 85 133 72 120 72 100 C 72 80 84 66 100 40 Z" fill="url(#og-flame)"></path>
+    <path d="M100 74 C 108 90 113 98 113 108 C 113 119 107 126 100 126 C 93 126 87 119 87 108 C 87 98 92 90 100 74 Z" fill="#FFF3D4" opacity="0.78"></path>
+
+    <!-- bowl -->
+    <path d="M34 136 L 166 136 C 160 164 133 178 100 178 C 67 178 40 164 34 136 Z" fill="url(#og-bowl)"></path>
+    <rect x="30" y="130" width="140" height="9" rx="4.5" fill="#E8C077"></rect>
+    <path d="M46 150 L 154 150" stroke="#7C5716" stroke-width="2" opacity="0.45"></path>
+  </svg>
+
+  <div style="position: absolute; left: 0; bottom: 0; width: 1200px; height: 6px; background: #6B1F14;"></div>
+</div>
+</x-dc>
+</body>
+</html>

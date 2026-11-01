@@ -30,11 +30,21 @@ primary_region = "bom"
   size = "shared-cpu-1x"
   memory = "512mb"
 
-# Secrets are set with `fly secrets set`, never committed:
+# Secrets are set with `fly secrets set`, never committed. See .env.example for
+# where each one comes from.
+#
+# REQUIRED — the process refuses to boot in production without these:
 #   DATABASE_URL REDIS_URL
 #   JWT_ACCESS_SECRET JWT_REFRESH_SECRET
 #   RAZORPAY_KEY_ID RAZORPAY_KEY_SECRET RAZORPAY_WEBHOOK_SECRET
-#   WHATSAPP_API_URL WHATSAPP_API_KEY WHATSAPP_SENDER MSG91_AUTH_KEY
+#   R2_ENDPOINT R2_BUCKET R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY
+#   WHATSAPP_API_URL WHATSAPP_API_KEY WHATSAPP_SENDER
+#
+# OPTIONAL — absence degrades one feature rather than breaking the app:
+#   MSG91_AUTH_KEY          SMS fallback; WhatsApp still delivers without it
+#   ANTHROPIC_API_KEY       the assistant declines politely without it
+#   WHATSAPP_INBOUND_SECRET inbound messaging refuses everything without it
+#   WEB_BASE_URL            defaults to https://themaithil.in
 [deploy]
   release_command = "node apps/api/dist/db/migrate.js"
   strategy = "rolling"

@@ -1,0 +1,11 @@
+-- A login OTP goes to a phone, not to an account.
+--
+-- `notifications.user_id` was NOT NULL, which is right for every message we had:
+-- all of them are about a booking, and a booking has two known parties. A login
+-- code is the exception — the whole point of it is that the person may not have an
+-- account yet, and signup is when it matters most.
+--
+-- Nullable rather than a separate table: it is the same message, on the same
+-- channels, with the same delivery and failure states, and ops chasing "did the
+-- code go out?" should not have to know which of two places to look.
+ALTER TABLE notifications ALTER COLUMN user_id DROP NOT NULL;

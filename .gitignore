@@ -1,8 +1,17 @@
 node_modules/
 dist/
+.next/
+.next-build/
 .turbo/
 .env
 .env.local
 *.log
 coverage/
 .DS_Store
+
+# Local end-to-end driver dependencies (scripts/e2e is self-contained,
+# installed on demand and never part of the pnpm workspace).
+scripts/e2e/node_modules/
+
+# TypeScript incremental build state
+*.tsbuildinfo

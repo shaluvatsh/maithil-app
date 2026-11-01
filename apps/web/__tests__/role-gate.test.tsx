@@ -84,4 +84,27 @@ describe('a restricted route still waits for the role', () => {
     await waitFor(() => expect(pushed).toContain('/purohit'));
     expect(screen.queryByText('The whole home page')).not.toBeInTheDocument();
   });
+
+  /**
+   * A signed-out visitor is not in the wrong place, only not signed in yet — so
+   * they go to sign in, carrying where they were headed.
+   *
+   * This used to send them to `homeFor('guest')`, the homepage, and it got there
+   * FIRST: the gate unmounted the page before the page's own
+   * `/login?next=/account` redirect could run. Following a bookmarked or shared
+   * link to your own bookings dropped you on the marketing homepage with no
+   * explanation, and signing in afterwards returned you to the homepage too,
+   * because nothing had recorded where you were going.
+   */
+  for (const route of ['/account', '/purohit/setup']) {
+    it(`sends a signed-out visitor from ${route} to sign in, keeping the destination`, async () => {
+      setPath(route);
+
+      render(<RoleGate>{PAGE}</RoleGate>);
+      await waitFor(() =>
+        expect(pushed).toContain(`/login?next=${encodeURIComponent(route)}`));
+      expect(pushed).not.toContain('/');
+      expect(screen.queryByText('The whole home page')).not.toBeInTheDocument();
+    });
+  }
 });

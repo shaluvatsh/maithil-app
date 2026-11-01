@@ -89,6 +89,16 @@ h3 { font-size: 1.05rem; font-weight: 700; letter-spacing: -.01em; }
 p { margin: 0 0 1rem; }
 a { color: var(--orange-600); text-decoration: none; }
 .num, td.num, th.num { font-variant-numeric: tabular-nums; text-align: right; }
+
+/*
+ * Form fields. See components/field.tsx for why the hint is a SIBLING of the label
+ * rather than inside it: a wrapping label makes its whole text content the input's
+ * accessible name, so a character counter inside one renames the field on every
+ * keystroke.
+ */
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field > label { font-weight: 600; font-size: .92rem; }
+.field-hint { font-size: .82rem; }
 .muted { color: var(--muted); }
 .faint { color: var(--faint); }
 .mono { font-variant-numeric: tabular-nums; }
@@ -118,14 +128,30 @@ a { color: var(--orange-600); text-decoration: none; }
   border-radius: 999px; padding: 10px 18px;
   font-size: .95rem; font-weight: 600; color: var(--ink);
   cursor: pointer; box-shadow: var(--shadow-sm);
+  /*
+   * Never wrap. Without this the pill was a flex item free to shrink below its
+   * text, so at 390px "Select your city" broke onto THREE lines inside a
+   * pill-shaped button and shoved the sign-in control off the right edge — on
+   * every page, for every visitor arriving on a phone. It shrinks by truncating
+   * the name instead; the pin and chevron always survive.
+   */
+  white-space: nowrap; flex-shrink: 0;
 }
 .city-pill:hover { border-color: var(--faint); background: var(--white); }
-.city-pill .pin { color: var(--orange-600); }
+.city-pill .pin { color: var(--orange-600); flex-shrink: 0; }
+.city-name { overflow: hidden; text-overflow: ellipsis; }
 
 .nav .links { display: flex; gap: 22px; margin-left: 10px; }
 .nav .links a { color: var(--ink-2); font-size: .95rem; font-weight: 500; }
 .nav .links a:hover, .nav .links a.on { color: var(--orange-600); }
 .nav .right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+/*
+ * Same failure as the city pill above: a flex child shrinks below its text
+ * by default, and at 375px "Sign in" broke onto two lines ("Sign" / "in")
+ * instead of giving up room elsewhere. Scoped to the header only — `.btn` is
+ * used site-wide for buttons that are supposed to wrap in narrow contexts.
+ */
+.nav .right .btn { white-space: nowrap; flex-shrink: 0; }
 .icon-btn {
   width: 44px; height: 44px; border-radius: var(--radius); flex: 0 0 44px;
   border: 1px solid var(--line); background: var(--white);
@@ -181,10 +207,29 @@ a { color: var(--orange-600); text-decoration: none; }
 
    The rules below hold the hero near 330px. `heroBudget` in css-invariants.test.ts
    adds these up and fails if the total creeps back over 380. -------------------- */
+/*
+ * The havan photo as the hero's own ground, not a card floating beside the
+ * text. Nothing here dims or blurs the photo itself — the two content panels
+ * below (`.hero-say`, `.pcard-hero`) carry their own frosted-glass backing,
+ * so the photo stays sharp in the open ground between and around them and
+ * softens only where a panel actually sits on top of it. `background-image`
+ * rather than an `<img>`: this is decorative ground, not content, so it
+ * needs no alt text and nothing for a screen reader to skip past.
+ */
 .hero {
-  background: linear-gradient(180deg, #FFFDF5 0%, #FEF9E7 60%, #FDF6E3 100%);
-  padding: 36px 0 30px;
+  position: relative;
+  background: #2A1D12 url('/images/hero/hero.jpg') center 32% / cover no-repeat;
+  padding: 56px 0 44px;
 }
+/* A faint warm wash, not a scrim over the whole photo — enough that the
+   unpaneled ground reads as part of the same warm palette as the rest of the
+   page rather than a hard-edged photo dropped onto cream. */
+.hero::before {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(180deg, rgba(42,29,18,.32) 0%, rgba(42,29,18,.1) 45%, rgba(42,29,18,.38) 100%);
+  pointer-events: none;
+}
+.hero-grid { position: relative; z-index: 1; }
 /* Two columns above 900px, so the almanac sits beside the search rather than
    below the fold; one below, where the panchang follows the search box. */
 /*
@@ -199,7 +244,19 @@ a { color: var(--orange-600); text-decoration: none; }
   display: grid; gap: 22px 40px; align-items: center;
   grid-template-columns: minmax(0, 1.25fr) minmax(0, .75fr);
 }
-.hero-say { min-width: 0; }
+/*
+ * The frosted panel that carries the headline, search and stats. Same
+ * device as `.pcard-hero` below (translucent warm ground + blur), so the
+ * photo softens specifically where this sits and nowhere else. `padding` and
+ * a ground colour turn what used to be bare text sitting on a flat page
+ * background into a panel that can sit on top of a photo instead.
+ */
+.hero-say {
+  min-width: 0; background: rgba(255, 253, 246, .84);
+  backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, .55); border-radius: var(--radius-xl);
+  padding: 30px 32px; box-shadow: var(--shadow-lg);
+}
 .hero h1 { max-width: 18ch; font-size: clamp(1.8rem, 3.1vw, 2.4rem); }
 .hero .lede {
   color: var(--ink-2); font-size: 1rem; margin: 10px 0 0; max-width: 52ch;
@@ -211,10 +268,13 @@ a { color: var(--orange-600); text-decoration: none; }
 
 /* ------------------------------------------------------- hero panchang -- */
 .pcard-hero {
-  background: rgba(255, 255, 255, .8);
-  border: 1px solid #FBE8C8; border-radius: var(--radius-xl);
-  padding: 18px 20px; box-shadow: var(--shadow-sm);
-  backdrop-filter: blur(4px);
+  background: rgba(255, 255, 255, .82);
+  border: 1px solid rgba(255, 255, 255, .55); border-radius: var(--radius-xl);
+  padding: 18px 20px; box-shadow: var(--shadow-lg);
+  /* Tuned up from 4px: that was set against a flat gradient, where any blur
+     at all was already enough. Sitting on a real photo now, a light blur let
+     the image's own texture and edges show straight through the "glass". */
+  backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
 }
 .ph-top { display: flex; align-items: center; gap: 12px; }
 .ph-moon {
@@ -421,7 +481,7 @@ a { color: var(--orange-600); text-decoration: none; }
 .hub-group-head .btn { margin-left: auto; }
 .hub-tile {
   width: 46px; height: 46px; border-radius: 13px; flex: 0 0 46px;
-  display: grid; place-items: center; font-size: 22px;
+  object-fit: cover; background: var(--line-soft); display: block;
 }
 
 /*
@@ -481,8 +541,8 @@ a { color: var(--orange-600); text-decoration: none; }
 
 /* The jump bar carries the same tiles as the groups it links to. */
 .jp-tile {
-  width: 20px; height: 20px; border-radius: 6px; display: grid; place-items: center;
-  font-size: 11px; flex: 0 0 20px;
+  width: 20px; height: 20px; border-radius: 6px; flex: 0 0 20px;
+  object-fit: cover; background: var(--line-soft); display: block;
 }
 @media (prefers-reduced-motion: reduce) { .hub-card { transition: none; } }
 
@@ -583,6 +643,10 @@ a { color: var(--orange-600); text-decoration: none; }
   width: 64px; height: 64px; border-radius: 16px; margin: 0 auto 16px;
   display: grid; place-items: center; font-size: 30px;
 }
+.cat-card .tile.has-photo {
+  overflow: hidden; background: var(--line-soft);
+}
+.cat-card .tile.has-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .cat-card .name { font-weight: 700; font-size: 1.02rem; }
 .cat-card .desc { color: var(--muted); font-size: .88rem; margin-top: 4px; }
 
@@ -623,6 +687,27 @@ a { color: var(--orange-600); text-decoration: none; }
 .svc-top.cool .emoji { background: linear-gradient(135deg, #93C5FD, #2563EB); }
 .svc-top .rating { margin-top: 10px; font-size: .84rem; font-weight: 600; }
 .svc-top .rating .rev { color: var(--muted); font-weight: 400; }
+
+/*
+ * A real photo in place of the emoji tile, where one exists. The source
+ * photos are close to square (~6:5); at 136px tall against a ~290px-wide
+ * card that asked `object-fit: cover` to crop nearly half of every photo
+ * away to fill a 2.15:1 strip, which is what actually read as "poor
+ * quality" - not the resolution, the composition left after that much of
+ * the photo was cut. Taller relative to the card width keeps the aspect
+ * ratio closer to the source's own, so cover crops far less of it.
+ */
+.svc-photo {
+  position: relative; height: 172px; overflow: hidden;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+}
+.svc-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.svc-photo .rating.on-photo {
+  position: absolute; left: 12px; bottom: 10px;
+  background: rgba(15, 23, 42, .72); color: #fff; backdrop-filter: blur(2px);
+  border-radius: 999px; padding: 4px 10px; font-size: .78rem; font-weight: 600;
+}
+.svc-photo .rating.on-photo .rev { color: rgba(255,255,255,.78); }
 .badge {
   position: absolute; top: 14px; border-radius: 999px; padding: 5px 12px;
   font-size: .74rem; font-weight: 700; background: var(--white);
@@ -900,11 +985,51 @@ tbody tr:hover { background: var(--line-soft); }
 .slot .mark.avoid { color: #BE123C; }
 .slot.on .mark { color: rgba(255,255,255,.9); }
 
-.bill { font-size: .98rem; }
-.bill .line { display: flex; justify-content: space-between; gap: 16px; padding: 8px 0; }
-.bill .line span:last-child { font-variant-numeric: tabular-nums; }
-.bill .line.total { border-top: 2px solid var(--ink); margin-top: 8px; padding-top: 12px; font-weight: 800; font-size: 1.1rem; }
-.bill .line.now { color: var(--orange-600); font-weight: 700; }
+/*
+ * The itemised lines (dakshina, materials, service fee) build up to a total a
+ * devotee is about to commit to — that number, and the two that follow it (what
+ * moves today vs. at the door), are the only ones on this card that actually
+ * change what happens next. A flat list of same-weight rows under a 2px black
+ * bar treated all of them as equally important, which is why nothing here read
+ * as considered: the eye had nowhere to land.
+ */
+.bill { font-size: .93rem; }
+.bill .line {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 16px;
+  padding: 9px 0; color: var(--ink-2);
+}
+.bill .line span:first-child { min-width: 0; }
+.bill .line span:last-child {
+  font-variant-numeric: tabular-nums; font-weight: 600; color: var(--ink);
+  letter-spacing: -.01em; flex-shrink: 0;
+}
+
+/* Total: a label, not another line item — the number is what carries it. */
+.bill .line.total {
+  border-top: 1px solid var(--line); margin-top: 10px; padding: 18px 0 16px;
+  align-items: center;
+}
+.bill .line.total span:first-child {
+  font-size: .74rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .07em; color: var(--muted);
+}
+.bill .line.total span.amt {
+  font-size: 1.6rem; font-weight: 800; letter-spacing: -.02em; color: var(--ink);
+}
+
+/* The payment split: what moves today against what is due later, set apart from
+   the cost breakdown above it rather than continuing the same list of rows. */
+.pay-split {
+  background: var(--orange-50); border: 1px solid var(--orange-100);
+  border-radius: var(--radius); padding: 4px 14px; margin-top: 2px;
+}
+.pay-split .line { padding: 10px 0; }
+.pay-split .line + .line { border-top: 1px solid rgba(0,0,0,.06); }
+.pay-split .line.now span:first-child { font-weight: 700; color: var(--orange-700); }
+.pay-split .line.now span:last-child { color: var(--orange-600); font-size: 1.05rem; }
+.pay-split .line.due span:first-child { color: var(--muted); }
+.pay-split .line.due span:last-child { color: var(--ink-2); font-weight: 600; }
+
 .bill .note { color: var(--muted); font-size: .88rem; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); }
 
 .panjika { background: var(--cream); border: 1px solid #FBE8C8; border-radius: var(--radius-lg); padding: 16px 18px; }
@@ -1129,10 +1254,31 @@ footer.site .bottom .dot { color: #334155; }
   .hero h1, .hero .lede { max-width: none; }
   .searchwrap { max-width: none; }
 }
+@media (max-width: 640px) {
+  /* The frosted panel's own padding, tightened - `.hero-say` still needs
+     room to breathe from the photo edges on a narrow screen, just less of it. */
+  .hero-say { padding: 22px 20px; }
+}
 @media (max-width: 860px) {
   .nav .links { display: none; }
   .menu-btn { display: grid; }
   .mobile-menu.open { display: block; }
+}
+
+/*
+ * The header has five things competing for one row: brand, city, burger, bookings
+ * and account. Past this width they no longer fit at full size, so each gives up
+ * what it can least afford to lose LAST — the city keeps its pin and its chevron
+ * and truncates the name, the brand keeps its mark and drops the word.
+ */
+@media (max-width: 620px) {
+  .nav-inner { padding: 0 12px; gap: 10px; }
+  .city-pill { padding: 9px 12px; font-size: .88rem; }
+  .city-name { max-width: 9ch; }
+}
+@media (max-width: 460px) {
+  .brand .word { display: none; }
+  .city-name { max-width: 11ch; }
 }
 @media (max-width: 980px) {
   .mobile-cta.show { display: flex; }
@@ -1425,7 +1571,16 @@ footer.site .bottom .dot { color: #334155; }
 }
 .auth-split > * { min-width: 0; }
 .auth-aside {
-  background: linear-gradient(150deg, #7C2D12 0%, #C2410C 45%, #EA580C 100%);
+  /*
+   * A kalash, diyas and flowers in warm lamplight — a threshold image, which is
+   * what signing in actually is. The gradient sat here alone before; layered
+   * as a second background rather than a solid colour behind the photo, it
+   * keeps the same warm read at a glance and the same guaranteed contrast for
+   * the white text on top even before the photo has loaded.
+   */
+  background:
+    linear-gradient(160deg, rgba(87,26,10,.62) 0%, rgba(154,45,12,.42) 40%, rgba(194,65,12,.5) 100%),
+    url('/images/auth/login-bg.jpg') center / cover no-repeat;
   color: #fff; padding: 64px 56px; display: flex; flex-direction: column; justify-content: center;
 }
 .auth-aside h2 { color: #fff; font-size: 2.3rem; max-width: 14ch; }
@@ -1453,6 +1608,21 @@ footer.site .bottom .dot { color: #334155; }
 .tabs button.on { background: #fff; color: var(--ink); box-shadow: var(--shadow-sm); }
 .tabs button:hover:not(.on) { background: transparent; color: var(--ink-2); }
 
+/*
+ * Four equal tabs do not fit a 390px screen: "Preferences" was clipped to
+ * "Prefe" with nothing indicating it could be reached. They stop stretching and
+ * the strip scrolls instead, with the last tab deliberately part-visible at rest
+ * so the overflow is discoverable rather than a guess.
+ */
+@media (max-width: 560px) {
+  .tabs {
+    overflow-x: auto; -webkit-overflow-scrolling: touch;
+    scrollbar-width: none; scroll-snap-type: x proximity;
+  }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tabs button { flex: 0 0 auto; padding: 10px 16px; scroll-snap-align: start; }
+}
+
 .field { margin-bottom: 16px; }
 .field label { text-transform: none; letter-spacing: 0; font-size: .88rem; font-weight: 600; color: var(--ink-2); }
 .field input { width: 100%; padding: 13px 14px; font-size: 1rem; }
@@ -1464,6 +1634,14 @@ footer.site .bottom .dot { color: #334155; }
   pointer-events: none;
 }
 .field.with-prefix input { padding-left: 52px; }
+
+.field.with-reveal { position: relative; }
+.field.with-reveal input { padding-right: 70px; }
+.field.with-reveal .reveal {
+  position: absolute; right: 10px; top: 32px; background: none; border: 0;
+  color: var(--orange-600); font-weight: 700; font-size: .82rem; padding: 8px;
+  cursor: pointer;
+}
 
 .otp-boxes { display: flex; gap: 10px; }
 .otp-boxes input {
@@ -1549,7 +1727,9 @@ footer.site .bottom .dot { color: #334155; }
 }
 .opt:hover { border-color: var(--orange); }
 .opt.on { border-color: var(--orange-600); box-shadow: 0 0 0 2px rgba(249,115,22,.16); }
+.opt .t { display: block; font-weight: 700; }
 .opt .s { display: block; font-weight: 400; font-size: .85rem; color: var(--muted); margin-top: 3px; }
+.opt.on .s { color: var(--orange-700); }
 
 @media (max-width: 980px) { .book-layout { grid-template-columns: 1fr; } .summary { position: static; } }
 
@@ -1582,6 +1762,14 @@ footer.site .bottom .dot { color: #334155; }
   color: var(--muted); border-radius: 99px; padding: 1px 7px;
 }
 .catchip.on .n { background: rgba(255,255,255,.24); color: #fff; }
+.catchip-photo {
+  width: 18px; height: 18px; border-radius: 50%; object-fit: cover;
+  flex: 0 0 18px; background: var(--line-soft);
+}
+/* A ring, not a border swap: `.catchip.on` inverts the chip to a solid
+   orange fill, and a photo needs its own edge to read as a chosen icon
+   against that rather than just going flush with the pill behind it. */
+.catchip.on .catchip-photo { box-shadow: 0 0 0 1px rgba(255,255,255,.6); }
 
 /* ----------------------------------------------------- booking substeps -- */
 
@@ -1593,6 +1781,11 @@ footer.site .bottom .dot { color: #334155; }
   text-transform: uppercase; color: var(--orange-700); margin-bottom: 4px;
 }
 .card.chosen { border-color: var(--orange-100); background: var(--orange-50); }
+.chosen-ritual { display: flex; align-items: center; gap: 12px; }
+.chosen-photo {
+  width: 44px; height: 44px; border-radius: var(--radius); flex: 0 0 44px;
+  object-fit: cover; display: block; background: var(--line-soft);
+}
 
 .substep { margin-bottom: 26px; }
 .substep-head { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 12px; }
@@ -1670,6 +1863,13 @@ footer.site .bottom .dot { color: #334155; }
   align-items: start; }
 .pooja-grid > * { min-width: 0; }
 
+.pooja-photo {
+  width: 100%; aspect-ratio: 16 / 7; border-radius: var(--radius-lg);
+  overflow: hidden; background: var(--line-soft); margin-bottom: 20px;
+}
+.pooja-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+@media (max-width: 640px) { .pooja-photo { aspect-ratio: 4 / 3; } }
+
 .pooja-head h1 { font-size: 2.1rem; margin: 12px 0 0; }
 .pooja-head .sub { margin: 8px 0 16px; font-size: 1.02rem; }
 .pooja-head .facts { display: flex; flex-wrap: wrap; gap: 18px; font-size: .92rem;
@@ -1697,6 +1897,16 @@ footer.site .bottom .dot { color: #334155; }
 .pooja-sec summary::marker { color: var(--orange-600); }
 .pooja-sec details p { margin: 10px 0 0; color: var(--muted); font-size: .93rem; max-width: 62ch; }
 
+.bom-details { border: 0; padding: 0; }
+.bom-details summary {
+  list-style: none; display: inline-flex; align-items: center; gap: 6px;
+  font-size: .92rem; color: var(--orange-700); padding: 4px 0;
+}
+.bom-details summary::-webkit-details-marker { display: none; }
+.bom-details summary::before { content: '▸'; font-size: .8em; transition: transform .15s ease-out; }
+.bom-details[open] summary::before { transform: rotate(90deg); }
+.bom-details .table-wrap { margin-top: 14px; }
+
 .pooja-buy { position: sticky; top: 90px; }
 .pooja-buy .big { font-size: 2rem; font-weight: 800; line-height: 1.1; margin: 2px 0 4px; }
 .citylinks { display: flex; flex-wrap: wrap; gap: 6px 12px; margin-top: 8px; color: var(--muted); }
@@ -1715,6 +1925,8 @@ footer.site .bottom .dot { color: #334155; }
   font-weight: 800; width: 56px; height: 56px; font-size: 1.4rem;
 }
 .avatar.sm { width: 30px; height: 30px; font-size: .92rem; }
+/* The same circle, when it holds a photograph rather than an initial. */
+img.avatar { object-fit: cover; padding: 0; }
 
 /* The header badge sits on the icon, so the icon has to be the containing block. */
 .nav .icon-btn { position: relative; }
@@ -1765,10 +1977,13 @@ footer.site .bottom .dot { color: #334155; }
 
 .bk-list { display: flex; flex-direction: column; gap: 10px; }
 .bk {
-  display: grid; grid-template-columns: 92px minmax(0, 1fr) auto; gap: 16px;
+  /* 112px, not 92px: the row now shows the whole date ("Wed, 26 Aug") rather
+     than just a weekday, and at 92px it broke the month onto its own line. */
+  display: grid; grid-template-columns: 112px minmax(0, 1fr) auto; gap: 16px;
   align-items: center; background: #fff; border: 1px solid var(--line);
   border-radius: var(--radius); padding: 14px 18px;
 }
+.bk-when .d { white-space: nowrap; }
 .bk-when { display: flex; flex-direction: column; }
 .bk-when .d { font-weight: 700; }
 .bk-when .t { font-size: .8rem; color: var(--muted); }
@@ -1780,8 +1995,175 @@ footer.site .bottom .dot { color: #334155; }
 .bk-clickable { cursor: pointer; }
 .bk-clickable:hover { border-color: var(--orange); box-shadow: var(--shadow-md); }
 .bk-clickable:focus-visible { outline: 2px solid var(--orange); outline-offset: 2px; }
+.bk-who { font-size: .85rem; color: var(--muted); margin-top: 4px; overflow-wrap: anywhere; }
+/* Still fully legible and still openable - just not competing with the live
+   bookings above it. */
+.bk-off { background: var(--line-soft); border-color: var(--line-soft); }
+.bk-off .bk-title, .bk-off .bk-amt { color: var(--ink-2); font-weight: 600; }
+.bk-off:hover { border-color: var(--line); }
+
+/*
+ * A SAVED ADDRESS IS NOT A BOOKING ROW.
+ *
+ * The addresses list borrowed `.bk`, whose grid is `112px minmax(0,1fr) auto` —
+ * three columns sized for a date, a title and a price. An address row has a single
+ * child, and a single child lands in the FIRST column: the 112-pixel date one. So
+ * every saved address rendered its text into a 112px ribbon and wrapped mid-phrase
+ * ("12 Hindusthan / Park, Gariahat ·") inside a card more than a thousand pixels
+ * wide, on a screen with nothing else on it.
+ *
+ * Nothing in a test could see this — the markup was valid, the classes existed and
+ * the text was all present. It needed a rendered page, which is the whole argument
+ * `scripts/e2e/` makes.
+ */
+.addr-saved {
+  display: flex; flex-direction: column; gap: 2px;
+  background: #fff; border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 14px 18px;
+}
+.addr-saved .lb { font-weight: 700; }
+.addr-saved .ln { font-size: .85rem; color: var(--muted); overflow-wrap: anywhere; }
+
+/*
+ * Past, as a passbook: a running total up top, then one page per month. Ten
+ * rows in a flat list answered "what happened" but never "how much have I
+ * spent" - the number every family checking their bookings actually wants.
+ */
+.ledger-head {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 12px; flex-wrap: wrap; margin-bottom: 4px;
+}
+.ledger-head .sec { margin: 0; }
+.ledger-total { font-size: .87rem; color: var(--muted); }
+.ledger-total strong { color: var(--ink); font-weight: 700; }
+.ledger-page { margin-top: 22px; }
+.ledger-page:first-of-type { margin-top: 10px; }
+/* The page divider - small-caps, letter-spaced, ruled beneath - reads as a
+   ledger heading rather than another section title competing with "Past". */
+.ledger-month {
+  font-size: .78rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--muted); padding-bottom: 8px; margin-bottom: 10px;
+  border-bottom: 1px dashed var(--line);
+}
+
+/* The left spine: a hairline of colour that says what kind of entry this is
+   at a glance, the way a passbook's ink colour distinguishes a credit from a
+   debit line, before you have read a single word of it. */
+.bk[data-tone="ok"] { border-left: 3px solid var(--green); }
+.bk[data-tone="wait"] { border-left: 3px solid var(--orange); }
+.bk[data-tone="done"] { border-left: 3px solid var(--blue); }
+.bk[data-tone="off"] { border-left: 3px solid var(--line); }
+/* The affordance the row was missing: it behaves as a button and looked like a
+   panel, so nothing said the card could be opened. */
+.bk-go { color: var(--muted); font-size: 1.1rem; line-height: 1; }
+
+/*
+ * The booking card on a phone. Three columns at 92px + 1fr + auto put the title,
+ * the status tag and the price into three narrow shafts of text, each wrapping
+ * mid-word: "Cancelled by devotee" over two lines beside "Satyanarayan / Puja"
+ * over two more. Under 560px the date moves to its own line as a heading and the
+ * rest gets the full width.
+ */
+@media (max-width: 560px) {
+  .bk { grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; padding: 14px; }
+  .bk-when {
+    grid-column: 1 / -1; flex-direction: row; align-items: baseline; gap: 8px;
+    padding-bottom: 8px; margin-bottom: 4px; border-bottom: 1px solid var(--line-soft);
+  }
+  .bk-when .t { font-size: .82rem; }
+  .bk-end { align-items: flex-end; justify-content: space-between; }
+  /*
+   * Room for the floating WhatsApp button, which is fixed at bottom-right and
+   * was landing squarely on the status tag and price of whichever booking
+   * happened to be there — covering the two things the row exists to show.
+   */
+  .account { padding-bottom: 104px; }
+}
 
 .bk-detail .bill { margin-top: 4px; }
+
+/* ------------------------------------------------- booking detail view -- */
+/*
+ * The date leads. It used to be grey micro-text beside the status tag, which is
+ * backwards: "when is it" is the question this view is opened to answer.
+ */
+.bd-when { margin-bottom: 12px; }
+.bd-date {
+  font-size: 1.15rem; font-weight: 800; letter-spacing: -.01em;
+  display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
+}
+.bd-rel {
+  font-size: .78rem; font-weight: 700; text-transform: lowercase;
+  color: var(--orange-700); background: var(--orange-50);
+  border-radius: 999px; padding: 3px 9px;
+}
+.bd-slot { color: var(--muted); font-size: .92rem; margin: 2px 0 8px; }
+
+/* What this booking needs from the reader, in one sentence. */
+.bd-next {
+  margin: 0 0 14px; padding: 11px 14px; border-radius: var(--radius-sm);
+  font-size: .92rem; line-height: 1.45; border: 1px solid transparent;
+}
+.bd-next.do { background: var(--orange-50); border-color: var(--cream-2); color: var(--ink); }
+.bd-next.wait { background: var(--green-50); border-color: var(--green-100); color: #14532D; }
+.bd-next.done { background: var(--line-soft); border-color: var(--line); color: var(--ink-2); }
+
+.bd-person {
+  display: flex; align-items: center; gap: 12px;
+  border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 12px 14px; margin-bottom: 10px;
+}
+.bd-person-id { min-width: 0; flex: 1; }
+.bd-person .who { font-weight: 700; overflow-wrap: anywhere; }
+.bd-person .why { font-size: .85rem; color: var(--muted); overflow-wrap: anywhere; }
+/* 44px tall so it is a real thumb target, not a link pretending to be one. */
+.bd-call { flex-shrink: 0; min-height: 44px; display: inline-flex; align-items: center; }
+
+.bd-row {
+  display: grid; grid-template-columns: 68px minmax(0, 1fr); gap: 12px;
+  padding: 9px 0; border-bottom: 1px solid var(--line-soft); font-size: .92rem;
+}
+.bd-row-k { color: var(--muted); font-weight: 600; }
+.bd-row-v { overflow-wrap: anywhere; }
+
+/*
+ * Reschedule. Same visual weight as the price/timeline sections above it, and
+ * deliberately NOT styled as destructive — moving a date is the opposite of
+ * cancelling, and dressing it the same way would make a benefit feel like a risk.
+ */
+.bd-resched {
+  margin-top: 16px; padding: 14px;
+  border: 1px solid var(--line); border-radius: var(--radius);
+}
+.bd-resched > .spread { flex-wrap: wrap; gap: 10px; }
+.bd-resched p { margin: 4px 0 0; font-size: .82rem; line-height: 1.45; max-width: 46ch; }
+.resched-panel { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line-soft); }
+
+/*
+ * Destructive, and dressed as such. Cancelling was a `linkish` button sitting
+ * beside the price on a tappable card; here it states its own cost first.
+ */
+.bd-danger {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 14px; flex-wrap: wrap;
+  margin-top: 16px; padding: 14px;
+  border: 1px solid var(--line); border-radius: var(--radius); background: var(--line-soft);
+}
+.bd-danger p { margin: 4px 0 0; font-size: .82rem; line-height: 1.45; max-width: 46ch; }
+
+.bd-help { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+/* `white-space: nowrap` because a phone number broken across two lines is not a
+   phone number - "+91 98300" sat on one line and "00000" on the next. */
+.bd-help-tel {
+  font-size: .87rem; color: var(--muted); white-space: nowrap;
+  text-decoration: underline; text-underline-offset: 2px;
+}
+.bd-help-tel:hover { color: var(--orange-700); }
+.btn.danger {
+  background: var(--white); color: var(--red);
+  border: 1px solid var(--red); box-shadow: none;
+}
+.btn.danger:hover:not(:disabled) { background: var(--red); color: var(--white); }
 .tl { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
 .tl-row {
   display: flex; justify-content: space-between; gap: 12px; padding: 8px 0;
@@ -1858,22 +2240,23 @@ footer.site .bottom .dot { color: #334155; }
 .wiz-rail .seg.done .lb { color: var(--ink-2); }
 
 /* 48px minimum: a thumb, not a mouse. */
+/*
+ * A dense grid of choices (cities, languages, traditions, rates) rather than the
+ * two-up `.opt-row`. Only the LAYOUT differs — the option card inside is `.opt`,
+ * the same primitive the devotee flow uses.
+ *
+ * There used to be a second card primitive here, `.pickbox`, which existed only
+ * because this grid needed a different container. It drifted: `.opt .s` is
+ * `display: block`, `.pickbox .s` never was, so every label ran into its own
+ * sub-label — "Bengaliবাংলা", "Bank accountAny Indian bank" — across the whole
+ * purohit onboarding, which is the one surface a 55-year-old purohit has to get
+ * through (ADR 0009). One primitive now; a fix to the option card cannot reach
+ * one persona and miss the other.
+ */
 .pickgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(148px, 1fr)); gap: 10px; }
 .pickgrid.two { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
-.pickbox {
-  min-height: 52px; padding: 13px 16px; border-radius: var(--radius);
-  border: 1.5px solid var(--line); background: #fff; color: var(--ink);
-  font-size: 1rem; font-weight: 600; cursor: pointer; text-align: left;
-}
-.pickbox:hover { border-color: var(--orange); }
-.pickbox.on {
-  border-color: var(--orange-600); background: var(--orange-50);
-  box-shadow: inset 0 0 0 1px var(--orange-600);
-}
-.pickbox.wide { display: flex; flex-direction: column; gap: 3px; }
-.pickbox .t { font-weight: 700; }
-.pickbox .s { font-size: .84rem; font-weight: 400; color: var(--muted); }
-.pickbox.on .s { color: var(--orange-700); }
+/* Even height for single-word options ("5 km") next to wrapping ones. */
+.pickgrid .opt { min-height: 52px; }
 
 .field.big input { font-size: 1.5rem; font-weight: 700; padding: 16px; height: auto; }
 
@@ -1888,6 +2271,19 @@ footer.site .bottom .dot { color: #334155; }
 .rate .amt input {
   width: 110px; font-size: 1.1rem; font-weight: 700; text-align: right; padding: 10px 12px;
 }
+
+/*
+ * A rate outside the range devotees are shown for that service.
+ *
+ * The API refuses these (RATE_OUT_OF_BAND) because the platform assigns the purohit
+ * — the devotee cannot avoid the price by choosing someone else. The message wraps
+ * onto its own line so it sits under the input it belongs to, rather than squeezing
+ * the row on a phone.
+ */
+.rate { flex-wrap: wrap; }
+.rate.bad { border-color: #FECACA; background: #FEF2F2; }
+.rate.bad .amt input { border-color: #FECACA; }
+.rate-err { flex-basis: 100%; margin: 4px 0 0; font-size: .82rem; color: #B91C1C; }
 
 /* Always reachable with a thumb, never scrolled past. */
 .wiz-foot {
@@ -1913,6 +2309,21 @@ footer.site .bottom .dot { color: #334155; }
 .legal h2 { font-size: 1.15rem; margin: 0 0 12px; }
 .legal p { max-width: 66ch; }
 .legal .ticks { margin-bottom: 16px; }
+
+/* A named-contact block on the guidelines page. Two columns on a desktop, stacked
+   on a phone — a definition list because that is what it is. */
+/* `minmax(0, 1fr)`, not `1fr`: a grid item's default `min-width: auto` refuses to
+   shrink below its content, so a long email address in the value column would push
+   the block past the viewport on a phone. */
+.legal .kv { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 8px 20px; margin: 16px 0 20px; }
+.legal .kv dd { overflow-wrap: anywhere; }
+.legal .kv dt { font-weight: 650; color: var(--ink-2); }
+.legal .kv dd { margin: 0; }
+.legal-foot { margin-top: 34px; padding-top: 22px; border-top: 1px solid var(--line); font-size: .92rem; }
+@media (max-width: 520px) {
+  .legal .kv { grid-template-columns: 1fr; gap: 2px 0; }
+  .legal .kv dd { margin-bottom: 12px; }
+}
 .legal-table { margin: 6px 0 14px; }
 .legal-table th, .legal-table td {
   text-align: left; padding: 11px 14px; border-bottom: 1px solid var(--line-soft);
@@ -1948,7 +2359,11 @@ footer.site .bottom .dot { color: #334155; }
   color: var(--ink);
 }
 .occ-card:hover { border-color: var(--orange); box-shadow: var(--shadow-md); }
-.occ-card .ic { font-size: 22px; margin-bottom: 4px; }
+.occ-card .ic {
+  display: block; width: 44px; height: 44px; border-radius: var(--radius);
+  overflow: hidden; margin-bottom: 6px; background: var(--line-soft); flex-shrink: 0;
+}
+.occ-card .ic img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .occ-card .lb { font-weight: 700; font-size: 1rem; line-height: 1.3; }
 .occ-card .bl { font-size: .85rem; color: var(--muted); }
 
@@ -2282,12 +2697,25 @@ footer.site .bottom .dot { color: #334155; }
 .modal-panel {
   width: min(560px, 100%); max-height: 78vh; overflow-y: auto;
   background: var(--white); border-radius: var(--radius-xl);
-  padding: 22px 24px; box-shadow: var(--shadow-lg);
+  padding: 0 24px 22px; box-shadow: var(--shadow-lg);
+  /* Momentum scrolling inside the sheet, and no scroll chaining out to the page
+     behind when the content reaches its end. */
+  overscroll-behavior: contain;
 }
 .modal-panel:focus { outline: none; }
+/*
+ * Sticky, because the panel scrolls. The booking detail is taller than the panel
+ * on any phone, so Close scrolled away with the content and the only way out was
+ * Escape (no keyboard on a phone) or a backdrop tap most people do not guess at.
+ * The title going with it also meant you could lose track of which booking you
+ * had opened halfway down.
+ */
 .modal-head {
+  position: sticky; top: 0; z-index: 1;
   display: flex; align-items: center; justify-content: space-between;
-  gap: 16px; margin-bottom: 14px;
+  gap: 16px; padding: 20px 0 12px; margin-bottom: 4px;
+  background: var(--white);
+  border-bottom: 1px solid var(--line-soft);
 }
 .modal-head h3 { font-size: 1.2rem; margin: 0; }
 
@@ -2312,8 +2740,19 @@ footer.site .bottom .dot { color: #334155; }
 .aus-go { color: var(--orange-600); font-weight: 800; }
 
 @media (max-width: 640px) {
-  .modal-back { padding: 20px 14px; align-items: flex-end; }
-  .modal-panel { max-height: 86vh; padding: 18px; }
+  /*
+   * A sheet anchored to the bottom of the screen, not a card floating in the
+   * middle of one. It reaches the edges, so the content gets the full width
+   * rather than losing 28px of it to a gutter, and it starts under the thumb
+   * instead of under the header.
+   */
+  .modal-back { padding: 0; align-items: flex-end; }
+  .modal-panel {
+    max-height: 92vh; width: 100%;
+    padding: 0 16px calc(18px + env(safe-area-inset-bottom));
+    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  }
+  .modal-head { padding: 16px 0 12px; }
   .cd-auspicious { align-items: flex-start; }
 }
 
@@ -2326,6 +2765,17 @@ footer.site .bottom .dot { color: #334155; }
    never been set by anything. The panel is quiet once done and unmissable until. */
 .payout-card { margin-bottom: 18px; }
 .payout-card.warn { border-color: var(--orange); background: var(--orange-50); }
+
+/* One line and a button, so a once-ever task stops opening itself above the work. */
+.payout-banner {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  flex-wrap: wrap; margin-bottom: 18px; padding: 14px 18px;
+  border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--white);
+  font-size: .92rem;
+}
+.payout-banner.warn { border-color: var(--orange); background: var(--orange-50); }
+.payout-banner > div { min-width: 0; flex: 1 1 260px; }
+.payout-banner .btn { flex-shrink: 0; }
 .payout-done { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
 .payout-ref { font-weight: 700; font-size: 1rem; margin: 2px 0; }
 .payout-form .field { margin-bottom: 14px; }
@@ -2355,3 +2805,973 @@ footer.site .bottom .dot { color: #334155; }
 .kyc-review { list-style: none; margin: 0 0 12px; padding: 0; display: grid; gap: 6px; }
 .kyc-review li { display: flex; align-items: center; gap: 8px; font-size: .88rem; }
 .kyc-review .kind { font-weight: 700; text-transform: capitalize; }
+
+/* Row placeholders for the purohit job inbox and the admin tables. */
+.sk-row {
+  display: flex; align-items: center; gap: 18px;
+  border: 1px solid var(--line); border-radius: var(--radius-lg);
+  padding: 0 18px; margin-bottom: 10px; pointer-events: none;
+}
+.sk-row .sk-line { margin-bottom: 0; }
+
+/* Optional precise-location capture on the address form. Offered, never demanded. */
+.geo-ask {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  margin: 0 0 10px; font-size: .82rem;
+}
+.geo-ask .faint { flex: 1 1 220px; min-width: 0; }
+.geo-ok { color: var(--green); font-weight: 600; }
+
+/* ------------------------------------------------------- time picker (ADR 0013) --
+   The whole day in 30-minute steps, replacing four fixed slots. Banded because
+   forty-eight buttons in one run cannot be scanned, and because the bands are the
+   words a family uses — including the ones the old grid could not express at all:
+   Brahma muhurta before dawn, and the night rites the catalogue already sells. */
+.timeband { margin-bottom: 18px; }
+.timeband-head {
+  display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 8px;
+}
+.timeband-head .nm {
+  font-size: .78rem; font-weight: 800; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--ink-2);
+}
+.timeband-head .note { font-size: .8rem; color: var(--muted); }
+
+.timegrid {
+  display: grid; gap: 8px;
+  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+}
+.timeslot {
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  padding: 11px 8px; cursor: pointer; min-height: 46px;
+  border: 1px solid var(--line); border-radius: var(--radius);
+  background: #fff; color: var(--ink); font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.timeslot:hover { border-color: var(--orange); }
+.timeslot.on {
+  background: var(--orange-600); border-color: var(--orange-600); color: #fff;
+}
+/* An auspicious window is worth finding at a glance, without shouting over the
+   selected state. */
+.timeslot.best { border-color: var(--orange); background: var(--orange-50); }
+.timeslot.best.on { background: var(--orange-600); }
+.timeslot .mark { font-size: .68rem; font-weight: 700; letter-spacing: .02em; }
+.timeslot .mark.auspicious { color: var(--green); }
+.timeslot .mark.avoid { color: #BE123C; }
+.timeslot.on .mark { color: rgba(255,255,255,.92); }
+
+/* The cash/online split, shown where the choice is made rather than after it. */
+.paysplit {
+  background: var(--orange-50); border: 1px solid var(--orange-100);
+  border-radius: var(--radius); padding: 4px 14px; margin: 0 0 14px;
+  font-size: .92rem;
+}
+.paysplit .line {
+  display: flex; justify-content: space-between; align-items: baseline;
+  gap: 16px; padding: 10px 0;
+}
+.paysplit .line + .line { border-top: 1px solid rgba(0,0,0,.06); }
+.paysplit .line span:last-child { font-variant-numeric: tabular-nums; flex-shrink: 0; }
+.paysplit .line.now span:first-child { font-weight: 700; color: var(--orange-700); }
+.paysplit .line.now span:last-child { color: var(--orange-600); font-weight: 700; }
+.paysplit .line.due span:first-child { color: var(--muted); }
+.paysplit .line.due span:last-child { color: var(--ink-2); font-weight: 600; }
+
+/* Materials shown as inclusions, where the devotee has no choice to make. */
+.incl {
+  border: 1px solid var(--line); border-radius: var(--radius-lg);
+  padding: 16px 18px; margin-bottom: 22px; background: var(--white);
+}
+.incl h3 { font-size: 1rem; }
+.incl-link { font-size: .88rem; font-weight: 600; }
+
+/*
+ * The verification queue: what a purohit claims, and what they have not sent.
+ *
+ * Approval used to be a rubber stamp on a name and a self-declared number of years.
+ * The reviewer keeps full discretion — this only makes sure the decision is an
+ * informed one, so a missing PAN card is visible rather than buried in a count.
+ */
+.warnish { color: #B45309; font-weight: 600; }
+
+.kyc-qual { display: flex; flex-direction: column; gap: 6px; margin: 14px 0 4px; }
+.kyc-qual select {
+  padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--radius);
+  background: var(--white); color: var(--ink); font: inherit; max-width: 320px;
+}
+.kyc-qual select:disabled { opacity: .6; }
+
+/*
+ * The onboarding checklist an unapproved purohit sees instead of the dashboard.
+ *
+ * Numbered because it IS a sequence — the profile before the documents, the
+ * documents before the review — which is the one case where numbering carries
+ * information rather than decorating.
+ */
+.onb-steps { list-style: none; margin: 22px 0 26px; padding: 0; counter-reset: onb; }
+.onb-steps li {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 16px 18px; margin-bottom: 10px; position: relative;
+}
+.onb-steps li::before {
+  counter-increment: onb; content: counter(onb);
+  position: absolute; left: -11px; top: 50%; transform: translateY(-50%);
+  width: 22px; height: 22px; border-radius: 50%;
+  display: grid; place-items: center;
+  font-size: .72rem; font-weight: 800;
+  background: var(--line-soft); color: var(--muted); border: 1px solid var(--line);
+}
+.onb-steps li.done::before { content: '✓'; background: var(--green); color: #fff; border-color: var(--green); }
+.onb-steps li.now::before { background: var(--orange); color: #fff; border-color: var(--orange); }
+.onb-steps li.done { background: var(--green-50); border-color: var(--green-100); }
+.onb-steps li.now { border-color: var(--orange-100); }
+.onb-steps li > div { display: flex; flex-direction: column; gap: 3px; }
+.onb-steps li .muted { font-size: .86rem; }
+
+/*
+ * The purohit's application tracker.
+ *
+ * A purohit who had sent their documents saw a chip reading "With our team" and
+ * nothing else — no sense of what happens next, and no idea whether two days or two
+ * weeks was normal. That silence is what makes someone message support, or give up.
+ */
+.appstat {
+  border: 1px solid var(--line); border-radius: var(--radius);
+  background: var(--white); padding: 18px 20px; margin: 16px 0 20px;
+  display: flex; flex-direction: column; gap: 14px;
+}
+.appstat-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.appstat-head h2 { margin: 0; font-size: 1.02rem; }
+.appstat-chip {
+  font-size: .74rem; font-weight: 700; padding: 4px 10px; border-radius: 999px;
+  white-space: nowrap; background: var(--line-soft); color: var(--muted);
+}
+.appstat-chip.in_review { background: var(--blue-50); color: var(--blue); }
+.appstat-chip.action_needed { background: #FEF2F2; color: #B91C1C; }
+.appstat-chip.approved { background: var(--green-50); color: var(--green); }
+.appstat-chip.declined { background: #FEF2F2; color: #B91C1C; }
+.appstat-chip.ready_to_submit { background: var(--orange-50); color: var(--orange-700); }
+
+.appstat-track { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.appstat-track li { display: flex; gap: 12px; align-items: flex-start; position: relative; padding-bottom: 16px; }
+.appstat-track li:last-child { padding-bottom: 0; }
+/* The connecting line, drawn behind the dots rather than between them. */
+.appstat-track li:not(:last-child)::before {
+  content: ''; position: absolute; left: 5px; top: 16px; bottom: 0;
+  width: 2px; background: var(--line);
+}
+.appstat-track li.done:not(:last-child)::before { background: var(--green); }
+.appstat-track .dot {
+  width: 12px; height: 12px; border-radius: 50%; margin-top: 5px; flex: 0 0 auto;
+  background: var(--white); border: 2px solid var(--line); z-index: 1;
+}
+.appstat-track li.done .dot { background: var(--green); border-color: var(--green); }
+.appstat-track li.now .dot { background: var(--orange); border-color: var(--orange); }
+.appstat-track li > div { display: flex; flex-direction: column; gap: 1px; }
+.appstat-track strong { font-size: .93rem; font-weight: 600; }
+.appstat-track li:not(.done):not(.now) strong { color: var(--muted); font-weight: 500; }
+.appstat-track .muted { font-size: .84rem; }
+
+.appstat-sla { margin: 0; font-size: .87rem; color: var(--ink-2); }
+
+.kyc-asked ul { margin: 6px 0 8px; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; }
+.kyc-asked li { font-size: .89rem; }
+.kyc-asked .muted { font-size: .83rem; display: block; }
+
+/* Asking a purohit for one document again, from the review queue. */
+.kyc-review .ask-why {
+  display: block; width: 100%; margin-top: 6px; padding: 7px 10px;
+  border: 1px solid #FECACA; border-radius: 8px; font: inherit; font-size: .86rem;
+  background: var(--white); color: var(--ink);
+}
+
+/*
+ * A document the reviewer has asked for again.
+ *
+ * It used to render exactly like a finished one — green tick, the word "Received" —
+ * so the single tile the purohit had to act on was indistinguishable from the three
+ * that were done, and its upload control was hidden behind that state.
+ */
+.kyc-doc.flagged { border-color: #FECACA; background: #FEF2F2; }
+.kyc-doc.flagged .kyc-note { color: #B91C1C; font-weight: 600; }
+
+/*
+ * A verdict on one document.
+ *
+ * Review was a single decision over the whole application, so a reviewer working
+ * through four documents had nowhere to record that the first three were fine. These
+ * mark state, not send anything — the reviewer takes one action on the application
+ * afterwards, and that is what reaches the purohit.
+ */
+.kyc-review .verdict { display: inline-flex; gap: 6px; margin-left: 10px; }
+.kyc-review .verdict .v {
+  font: inherit; font-size: .78rem; font-weight: 600; cursor: pointer;
+  padding: 3px 10px; border-radius: 999px;
+  border: 1px solid var(--line); background: var(--white); color: var(--muted);
+}
+.kyc-review .verdict .v:disabled { opacity: .5; cursor: default; }
+.kyc-review .verdict .v.ok.on {
+  background: var(--green-50); border-color: var(--green); color: var(--green);
+}
+.kyc-review .verdict .v.no.on { background: #FEF2F2; border-color: #FECACA; color: #B91C1C; }
+.kyc-review .verdict-note {
+  display: block; margin-top: 4px; font-size: .8rem; color: #B91C1C;
+}
+.kyc-review .ask-row { display: flex; gap: 8px; align-items: center; margin-top: 6px; }
+.kyc-review .ask-row .ask-why { flex: 1 1 auto; margin-top: 0; }
+
+/*
+ * The purohit's own photograph.
+ *
+ * Leads the verification panel because it is the only part of this application a
+ * devotee will ever see — everything below it is for the reviewer.
+ */
+.ppic {
+  display: flex; align-items: center; gap: 14px;
+  border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 14px 16px; margin: 14px 0 4px;
+}
+.ppic-face {
+  width: 62px; height: 62px; border-radius: 50%; flex: 0 0 auto; overflow: hidden;
+  background: var(--orange-50); border: 1px solid var(--line);
+  display: grid; place-items: center; font-size: 1.5rem; color: var(--orange-700);
+}
+.ppic-face img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.ppic-say { display: flex; flex-direction: column; gap: 2px; flex: 1 1 auto; min-width: 0; }
+.ppic-say strong { font-weight: 700; font-size: .94rem; }
+.ppic-say .muted { font-size: .84rem; }
+.ppic-err { font-size: .82rem; color: #B91C1C; }
+.ppic .btn { flex: 0 0 auto; white-space: nowrap; }
+
+/* The face in the review queue: comparing it to the photo ID is the identity check. */
+.qphoto {
+  width: 46px; height: 46px; border-radius: 50%; object-fit: cover;
+  border: 1px solid var(--line); flex: 0 0 auto;
+}
+
+/* ============================================================================
+   The knowledge library.
+
+   Reading type, not interface type: longer measure, larger body, generous leading.
+   The one surface in this product somebody sits down with.
+   ========================================================================== */
+
+.lr-wrap { max-width: 760px; padding-top: 28px; padding-bottom: 80px; }
+.lr-head h1 { margin: 0 0 6px; font-size: 1.6rem; letter-spacing: -.02em; }
+.lr-blurb { margin: 0 0 18px; max-width: 60ch; font-size: .95rem; }
+/* Real links, so each filter is a URL a crawler follows and a reader shares. */
+.lr-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 22px; }
+.lr-tabs .chip { text-decoration: none; border: 1px solid var(--line); background: var(--white); }
+.lr-tabs .chip.on { background: var(--orange-50); border-color: var(--orange); color: var(--orange-700); }
+
+.lr-links { margin: 0 0 18px; display: flex; gap: 8px; flex-wrap: wrap; }
+.lr-list { display: flex; flex-direction: column; gap: 14px; }
+
+/* Authoring. One column, long fields, room to think. */
+.lr-write { max-width: 680px; }
+.lr-form { display: flex; flex-direction: column; gap: 18px; margin-top: 20px; }
+/* Field styling lives with `.field` below, shared by every form. */
+.lr-form input, .lr-form textarea, .lr-form select {
+  padding: 11px 12px; border: 1px solid var(--line); border-radius: var(--radius);
+  font: inherit; font-weight: 400; color: var(--ink); background: var(--white);
+}
+.lr-form textarea { resize: vertical; line-height: 1.7; }
+.lr-cites { border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; }
+.lr-cites legend { padding: 0 6px; font-weight: 600; font-size: .92rem; }
+/* Three narrow fields: a work, a chapter, a verse. Stacked on a phone. */
+.lr-cite-row {
+  display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr);
+  gap: 8px; margin: 10px 0;
+}
+.lr-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.lr-notice {
+  margin: 12px 0 0; padding: 12px 14px; border-radius: var(--radius);
+  background: var(--cream); border: 1px solid var(--cream-2); color: #92400E;
+  font-size: .92rem;
+}
+
+/* The review queue. Oldest first, and the wait is the loudest thing on a row. */
+.lr-queue { list-style: none; margin: 18px 0 0; padding: 0;
+            display: flex; flex-direction: column; gap: 12px; }
+.lr-qrow {
+  padding: 14px 16px; border: 1px solid var(--line);
+  border-radius: var(--radius-lg); background: var(--white);
+}
+.lr-qmeta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: .85rem; }
+.lr-qwait { margin-left: auto; font-weight: 700; font-variant-numeric: tabular-nums; }
+.lr-qtitle { margin: 8px 0 2px; font-weight: 650; }
+.lr-qsummary { margin: 0; font-size: .9rem; }
+.lr-qactions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+.lr-qback { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.lr-qback input {
+  padding: 7px 11px; border: 1px solid var(--line); border-radius: var(--radius);
+  font: inherit; min-width: 240px;
+}
+
+@media (max-width: 480px) {
+  .lr-cite-row { grid-template-columns: minmax(0, 1fr); }
+}
+.lr-card {
+  display: block; padding: 18px; border: 1px solid var(--line);
+  border-radius: var(--radius-lg); background: var(--white);
+  text-decoration: none; color: inherit; box-shadow: var(--shadow-sm);
+  transition: border-color .15s, box-shadow .15s;
+}
+.lr-card:hover { border-color: var(--orange); box-shadow: var(--shadow-md); }
+.lr-kind { font-size: .8rem; font-weight: 700; color: var(--muted); }
+.lr-title { margin: 8px 0 4px; font-size: 1.1rem; font-weight: 650; line-height: 1.35; }
+.lr-summary { margin: 4px 0 10px; color: var(--ink-2); font-size: .94rem; max-width: 62ch; }
+.lr-by { display: block; font-size: .84rem; }
+.lr-tick { color: var(--green); font-weight: 800; }
+
+.lr-item h1 { margin: 6px 0 6px; font-size: 1.6rem; line-height: 1.3; letter-spacing: -.02em; }
+.lr-back { display: inline-block; margin-bottom: 12px; }
+/* Stated rather than left blank: a reader must be able to tell a checked item from
+   one that slipped through. */
+.lr-unchecked { color: var(--orange-700); font-weight: 600; }
+.lr-translated {
+  margin: 12px 0; padding: 10px 14px; border-radius: var(--radius);
+  background: var(--blue-50); border: 1px solid var(--blue-100);
+  color: var(--blue); font-size: .88rem; font-weight: 600;
+}
+.lr-langs { margin: 8px 0 0; font-size: .86rem; display: flex; gap: 10px; flex-wrap: wrap; }
+
+.lr-media { margin: 20px 0; }
+.lr-media audio, .lr-media video { width: 100%; border-radius: var(--radius); }
+.lr-transcript { margin: 0 0 18px; }
+.lr-transcript > summary { cursor: pointer; font-weight: 600; color: var(--muted); padding: 8px 0; }
+.lr-transcript p { margin: 8px 0 0; white-space: pre-wrap; color: var(--ink-2); }
+
+/* Reading measure and leading. `pre-wrap` because the body is text a human typed and
+   rendering it as HTML would be a stored-XSS hole for the sake of bold type. */
+.lr-body {
+  margin: 20px 0 28px; max-width: 66ch; font-size: 1.04rem; line-height: 1.75;
+  white-space: pre-wrap; overflow-wrap: anywhere; color: var(--ink);
+}
+
+.lr-sources { padding-top: 20px; border-top: 1px solid var(--line); }
+.lr-sources h2 { margin: 0 0 10px; font-size: 1.02rem; }
+.lr-sources ul { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 8px; }
+.lr-sources li { font-size: .92rem; }
+.lr-cta { margin-top: 28px; }
+.lr-empty { padding: 32px 0; text-align: center; }
+
+/* Guides inlined on a ritual page: a list of links, not cards competing with the
+   booking flow they sit inside. */
+.lr-inline { list-style: none; margin: 0; padding: 0;
+             display: flex; flex-direction: column; gap: 12px; }
+.lr-inline li { font-size: .94rem; line-height: 1.6; }
+
+/* ============================================================================
+   Events.
+
+   A calendar, not a feed: the date leads every card, because "when" is the first
+   thing anyone asks and the only one that rules an event out.
+   ========================================================================== */
+
+.ev-wrap { max-width: 760px; padding-top: 28px; padding-bottom: 72px; }
+.ev-head h1 { margin: 0 0 6px; font-size: 1.6rem; letter-spacing: -.02em; }
+.ev-blurb { margin: 0 0 18px; max-width: 58ch; font-size: .95rem; }
+.ev-scope { display: flex; gap: 8px; margin-bottom: 22px; }
+.ev-scope .chip { cursor: pointer; border: 1px solid var(--line); background: var(--white); }
+.ev-scope .chip.on { background: var(--orange-50); border-color: var(--orange); color: var(--orange-700); }
+
+.ev-list { list-style: none; margin: 0; padding: 0;
+           display: flex; flex-direction: column; gap: 14px; }
+.ev-card {
+  display: block; padding: 18px; border: 1px solid var(--line);
+  border-radius: var(--radius-lg); background: var(--white);
+  text-decoration: none; color: inherit; box-shadow: var(--shadow-sm);
+  transition: border-color .15s, box-shadow .15s;
+}
+.ev-card:hover { border-color: var(--orange); box-shadow: var(--shadow-md); }
+
+/* The date leads. Today and tomorrow are the two still worth acting on. */
+.ev-when {
+  display: inline-block; padding: 3px 11px; border-radius: 999px;
+  background: var(--line-soft); color: var(--ink-2);
+  font-size: .8rem; font-weight: 700;
+}
+.ev-when.soon { background: var(--orange-600); color: #fff; }
+.ev-title { margin: 10px 0 4px; font-size: 1.08rem; font-weight: 650; line-height: 1.35; }
+.ev-where, .ev-host { margin: 2px 0; font-size: .88rem; }
+.ev-seats { margin: 10px 0 0; font-size: .9rem; font-weight: 600; }
+.ev-full { color: var(--orange-700); }
+.ev-tick { color: var(--green); font-weight: 800; }
+
+.ev-hostlink { margin: 0 0 16px; }
+
+/* The hosting form: one column, generous targets. Filled in standing up, often by
+   somebody who does not fill in forms often. */
+.ev-host { max-width: 640px; }
+.ev-form { display: flex; flex-direction: column; gap: 18px; margin-top: 20px; }
+/* Fields come from components/field.tsx and style through `.field`. */
+.ev-form input, .ev-form textarea, .ev-form select {
+  padding: 11px 12px; border: 1px solid var(--line); border-radius: var(--radius);
+  font: inherit; font-weight: 400; color: var(--ink); background: var(--white);
+}
+.ev-form textarea { resize: vertical; line-height: 1.6; }
+/* Start and end sit together: they are one decision, not two. */
+.ev-times { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; }
+.ev-modes { border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; }
+.ev-modes legend { padding: 0 6px; font-weight: 600; font-size: .92rem; }
+.ev-note, .ev-notice {
+  margin: 12px 0 0; padding: 12px 14px; border-radius: var(--radius);
+  background: var(--cream); border: 1px solid var(--cream-2); color: #92400E;
+  font-size: .92rem;
+}
+
+.ev-detail h1 { margin: 6px 0 4px; font-size: 1.5rem; line-height: 1.3; }
+.ev-desc { margin: 16px 0; color: var(--ink-2); white-space: pre-wrap; max-width: 66ch; }
+.ev-back { display: inline-block; margin-bottom: 12px; }
+.ev-h { margin: 26px 0 10px; font-size: .82rem; font-weight: 700;
+        letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+
+.ev-cancelled {
+  margin: 0 0 14px; padding: 12px 16px; border-radius: var(--radius);
+  background: #FEF2F2; border: 1px solid #FCA5A5; color: #991B1B; font-weight: 700;
+}
+
+.ev-sessions { list-style: none; margin: 0; padding: 0;
+               display: flex; flex-direction: column; gap: 12px; }
+.ev-session {
+  padding: 14px 16px; border: 1px solid var(--line); border-radius: var(--radius-lg);
+  background: var(--white); display: flex; align-items: center;
+  justify-content: space-between; gap: 14px; flex-wrap: wrap;
+}
+/* A cancelled day stays listed, dimmed — removing it would hide what happened. */
+.ev-session.off { opacity: .55; }
+.ev-session-when { display: flex; flex-direction: column; gap: 2px; font-size: .9rem; }
+.ev-session-act { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.ev-price { font-weight: 700; font-variant-numeric: tabular-nums; }
+.ev-in { color: var(--green); font-weight: 700; font-size: .9rem; }
+.ev-waiting { color: var(--orange-700); font-weight: 600; font-size: .88rem; max-width: 34ch; }
+.ev-seats label, label.ev-seats { display: flex; align-items: center; gap: 6px; font-size: .86rem; }
+.ev-session select {
+  padding: 6px 10px; border: 1px solid var(--line); border-radius: var(--radius);
+  font: inherit;
+}
+.ev-msg { flex-basis: 100%; margin: 8px 0 0; color: var(--red); font-size: .88rem; }
+.ev-error { color: var(--red); }
+.ev-empty { padding: 32px 0; text-align: center; }
+.ev-more { margin: 20px auto 0; display: block; }
+
+@media (max-width: 560px) {
+  .ev-session { align-items: stretch; }
+  .ev-session-act { justify-content: space-between; }
+}
+
+/* ============================================================================
+   Purohit dashboard.
+
+   One vertical column, no second navigation layer. The reader is 30-65 on a
+   mid-range Android, often outdoors between jobs — so large type for the two
+   numbers that matter, a sentence under every number, and no hover-only anything.
+   ========================================================================== */
+
+.pd { display: flex; flex-direction: column; gap: 16px; margin: 22px 0 30px; }
+.pd section {
+  padding: 18px 20px; border: 1px solid var(--line);
+  border-radius: var(--radius-lg); background: var(--white);
+}
+/*
+ * Section hooks, each earning its rule.
+ *
+ * Today and money are the two sections the purohit came for, so they are the two
+ * that get visual weight; allocation and standing are read once a week and sit
+ * quieter. Without the distinction all five cards shout equally, which is the same
+ * as none of them doing so.
+ */
+.pd-today { border-color: var(--orange-100); background: var(--orange-50); }
+.pd-money { border-color: var(--line); box-shadow: var(--shadow-sm); }
+.pd-alloc, .pd-standing { background: var(--line-soft); border-color: transparent; }
+
+.pd-h { margin: 0 0 10px; font-size: .82rem; font-weight: 700;
+        letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+
+/* The one number the section exists to show. Deliberately large: this is read at
+   arm's length, standing up, in sunlight. */
+.pd-lead { margin: 0; font-size: 1.7rem; font-weight: 700; letter-spacing: -.02em; }
+.pd-sub { margin: 4px 0 0; font-size: .9rem; }
+
+/* A request with a deadline outranks everything else on the page. */
+.pd-urgent {
+  margin: 12px 0 0; padding: 10px 14px; border-radius: var(--radius);
+  background: var(--orange-50); border: 1px solid var(--orange-100);
+  color: var(--orange-700); font-weight: 600;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; flex-wrap: wrap;
+}
+
+.pd-kv { margin: 14px 0 0; display: flex; flex-direction: column; gap: 8px; }
+.pd-kv > div {
+  display: flex; justify-content: space-between; gap: 16px;
+  font-size: .92rem; padding-bottom: 8px; border-bottom: 1px solid var(--line-soft);
+}
+.pd-kv > div:last-child { border-bottom: 0; padding-bottom: 0; }
+.pd-kv dt { color: var(--muted); }
+.pd-kv dd { margin: 0; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* Three tallies, equal width, so none of them reads as the headline. */
+.pd-tally {
+  list-style: none; margin: 0; padding: 0;
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px;
+}
+.pd-tally li { display: flex; flex-direction: column; gap: 2px; font-size: .84rem; }
+.pd-n { font-size: 1.5rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.pd-note { margin: 14px 0 0; font-size: .84rem; }
+.pd-boost {
+  margin: 14px 0 0; padding: 8px 12px; border-radius: var(--radius);
+  background: var(--blue-50); color: var(--blue); font-size: .86rem; font-weight: 600;
+}
+
+/* Demand, as a table of three columns that stays readable on a phone. */
+.pd-demand { }
+.pd-areas { list-style: none; margin: 14px 0 0; padding: 0;
+            display: flex; flex-direction: column; gap: 10px; }
+.pd-area {
+  display: grid; grid-template-columns: max-content minmax(0, 1fr) max-content;
+  align-items: baseline; gap: 12px; font-size: .92rem;
+  padding-bottom: 9px; border-bottom: 1px solid var(--line-soft);
+}
+.pd-area:last-child { border-bottom: 0; padding-bottom: 0; }
+/* Outside the radius: the rows that are opportunity rather than history. */
+.pd-area.far .pd-where { color: var(--orange-700); font-weight: 600; }
+.pd-pin { font-weight: 700; font-variant-numeric: tabular-nums; }
+.pd-count { font-variant-numeric: tabular-nums; }
+.pd-where { font-size: .84rem; text-align: right; }
+
+@media (max-width: 480px) {
+  /* Stacked, because three columns of Indic text at 360px wrap into nonsense. */
+  .pd-area { grid-template-columns: max-content minmax(0, 1fr); }
+  .pd-where { grid-column: 1 / -1; text-align: left; }
+}
+
+/* The ladder. A list, not a progress bar: each rung is a separate thing to do, and
+   a single bar would imply they are steps in one sequence. */
+.pd-rungs { list-style: none; margin: 14px 0 0; padding: 0;
+            display: flex; flex-direction: column; gap: 12px; }
+.pd-rung {
+  display: grid; grid-template-columns: max-content minmax(0, 1fr) max-content;
+  gap: 12px; align-items: start;
+  padding-bottom: 11px; border-bottom: 1px solid var(--line-soft);
+}
+.pd-rung:last-child { border-bottom: 0; padding-bottom: 0; }
+.pd-rung-mark { font-weight: 800; color: var(--faint); line-height: 1.5; }
+.pd-rung.on .pd-rung-mark { color: var(--green); }
+.pd-rung-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.pd-rung-name { font-weight: 650; font-size: .94rem; }
+/* The criterion. Small, but never absent. */
+.pd-rung-why { font-size: .84rem; line-height: 1.5; }
+.pd-rung-state { font-size: .84rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.pd-ladder { background: var(--line-soft); border-color: transparent; }
+
+@media (max-width: 480px) {
+  .pd-rung { grid-template-columns: max-content minmax(0, 1fr); }
+  .pd-rung-state { grid-column: 2; }
+}
+
+.pd-attn ul { list-style: none; margin: 0; padding: 0; display: flex;
+              flex-direction: column; gap: 10px; }
+.pd-attn-row {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; flex-wrap: wrap; font-size: .92rem;
+}
+/* A left rule rather than a colour wash, so several at once stay readable. */
+.pd-attn-row.bad { border-left: 3px solid var(--red); padding-left: 10px; }
+.pd-attn.blocking { border-color: #FCA5A5; background: #FEF2F2; }
+
+@media (max-width: 560px) {
+  .pd-tally { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .pd-n { font-size: 1.25rem; }
+  .pd-lead { font-size: 1.45rem; }
+}
+
+/* ============================================================================
+   The festival countdown.
+
+   Sits above the questions: it is the reason to open the page on a day nobody has
+   asked anything. Warm surface rather than the card white used below it, so the
+   eye reads it as an almanac rather than as the first post.
+   ========================================================================== */
+
+.up-card {
+  margin: 0 0 26px; padding: 20px 22px; border-radius: var(--radius-xl);
+  background: linear-gradient(135deg, var(--cream), var(--blush));
+  border: 1px solid var(--cream-2);
+}
+/* The lead block: everything about the NEXT thing, before the list of the rest. */
+.up-lead { display: flex; flex-direction: column; align-items: flex-start; }
+.up-when {
+  display: inline-block; padding: 3px 12px; border-radius: 999px;
+  background: var(--white); color: var(--orange-700);
+  font-size: .8rem; font-weight: 700; letter-spacing: .01em;
+}
+/* Today and tomorrow are the two the reader may still act on. */
+.up-when.soon { background: var(--orange-600); color: #fff; }
+.up-name { margin: 10px 0 4px; font-size: 1.35rem; letter-spacing: -.01em; }
+.up-blurb { margin: 0 0 8px; max-width: 54ch; font-size: .94rem; }
+.up-date { margin: 0 0 14px; font-size: .86rem; }
+
+.up-rest {
+  list-style: none; margin: 16px 0 0; padding: 14px 0 0;
+  border-top: 1px dashed #F0DCC0; display: flex; flex-direction: column; gap: 8px;
+}
+.up-rest li { display: flex; justify-content: space-between; gap: 16px; font-size: .9rem; }
+.up-rest-name { font-weight: 600; }
+
+/* ============================================================================
+   Purohit setup in EDIT mode.
+
+   The wizard's own styles are untouched; these only apply once a purohit is
+   verified and the steps become independently saveable panels.
+   ========================================================================== */
+
+.wiz.editing { max-width: 720px; }
+.panel-head { margin-bottom: 8px; }
+.panel-head h1 { margin: 0 0 4px; font-size: 1.5rem; letter-spacing: -.02em; }
+/* Each panel is a card rather than a step, so the page reads as a list of things
+   you may change rather than a sequence you must complete. */
+.wiz.editing .wiz-step {
+  padding: 20px 22px; margin: 16px 0;
+  border: 1px solid var(--line); border-radius: var(--radius-lg);
+  background: var(--white); scroll-margin-top: 90px;
+}
+/* The wizard's per-step h1 is a page title; in a panel it is a section heading. */
+.wiz.editing .wiz-step h1 { font-size: 1.05rem; margin: 0 0 4px; }
+.panel-h {
+  margin: 0 0 12px; font-size: .82rem; font-weight: 700;
+  letter-spacing: .06em; text-transform: uppercase; color: var(--muted);
+}
+.panel-save { display: flex; align-items: center; gap: 12px; margin-top: 18px; }
+.panel-saved { color: var(--green); font-weight: 700; font-size: .9rem; }
+/* Unsaved work reads as something to do, not as an error — orange, not red. */
+.panel-dirty { color: var(--orange-700); font-weight: 700; font-size: .9rem; }
+.panel-unsaved {
+  margin: 10px 0 0; padding: 10px 14px; border-radius: var(--radius);
+  background: var(--orange-50); border: 1px solid var(--orange-100);
+  color: var(--orange-700); font-weight: 600; font-size: .9rem;
+}
+.panel-foot { margin-top: 26px; font-size: .9rem; }
+
+/* Same shape as .payout-banner — one line, an Edit button, nothing left open. */
+.practice-summary {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  flex-wrap: wrap; padding: 4px 0;
+}
+.practice-sum-line { margin: 0; min-width: 0; flex: 1 1 260px; color: var(--ink-2); }
+.practice-summary .btn { flex-shrink: 0; }
+
+/* Auto-accept + calendar, beside the job list rather than inside a settings form. */
+.quick-actions {
+  display: flex; flex-direction: column; gap: 14px; margin-bottom: 22px;
+}
+.qa-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  flex-wrap: wrap; padding: 14px 18px;
+  border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--white);
+  font-size: .92rem;
+}
+.qa-row > div { min-width: 0; flex: 1 1 260px; }
+
+/* A real switch, not a checkbox dressed up — large enough to hit one-handed. */
+.qa-switch {
+  flex-shrink: 0; position: relative; width: 46px; height: 26px; padding: 0;
+  border: none; border-radius: 999px; background: var(--line);
+  cursor: pointer; transition: background .15s;
+}
+.qa-switch.on { background: var(--orange); }
+.qa-switch:disabled { opacity: .5; cursor: default; }
+.qa-knob {
+  position: absolute; top: 3px; left: 3px; width: 20px; height: 20px;
+  border-radius: 50%; background: var(--white); box-shadow: var(--shadow-sm);
+  transition: transform .15s;
+}
+.qa-switch.on .qa-knob { transform: translateX(20px); }
+
+/* An unearned ladder rung that leads somewhere looks like it does. */
+.pd-rung-link { color: var(--orange-700); text-decoration: none; }
+.pd-rung-link:hover { text-decoration: underline; }
+
+/* ============================================================================
+   Festival transcription worksheet (admin)
+
+   Built for a sitting with a book open: every festival is a row whether or not it
+   has a date, and the count of what is left is at the top.
+   ========================================================================== */
+
+.fw-controls { align-items: flex-end; gap: 16px; flex-wrap: wrap; margin-bottom: 18px; }
+.fw-controls .field { gap: 4px; }
+.fw-controls .field > span { font-size: .82rem; font-weight: 700;
+                            letter-spacing: .04em; text-transform: uppercase;
+                            color: var(--muted); }
+.fw-controls select {
+  padding: 9px 12px; border: 1px solid var(--line); border-radius: var(--radius);
+  font: inherit;
+}
+.fw-left { margin: 0 0 0 auto; font-size: .94rem; }
+
+.fw-rows { list-style: none; margin: 0; padding: 0;
+           display: flex; flex-direction: column; gap: 10px; }
+.fw-row {
+  display: grid; grid-template-columns: minmax(0, 1fr) max-content;
+  gap: 16px; align-items: center;
+  padding: 12px 16px; border: 1px solid var(--line);
+  border-radius: var(--radius-lg); background: var(--white);
+}
+/* A recorded row recedes, so the eye lands on the gaps. */
+.fw-row.done { background: var(--line-soft); border-color: transparent; }
+.fw-name { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.fw-name > span { font-size: .86rem; }
+.fw-who { font-size: .8rem !important; }
+.fw-dates { display: flex; align-items: center; gap: 8px; }
+.fw-dates input {
+  padding: 8px 10px; border: 1px solid var(--line); border-radius: var(--radius);
+  font: inherit;
+}
+.fw-tick { color: var(--green); font-weight: 800; }
+
+@media (max-width: 640px) {
+  .fw-row { grid-template-columns: minmax(0, 1fr); }
+  .fw-left { margin-left: 0; }
+}
+
+/* ============================================================================
+   Community moderation queue (admin)
+
+   Ordered by wait, so the wait is the loudest thing on a row. `.stale` marks a
+   row past its window — the SLA is the product here, not a nicety.
+   ========================================================================== */
+
+.mq-head { margin: 28px 0 12px; font-size: 1.05rem; display: flex; align-items: center; gap: 10px; }
+.mq-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+.mq-row {
+  padding: 14px 16px; border: 1px solid var(--line);
+  border-radius: var(--radius-lg); background: var(--white);
+}
+/* Past its window. A left rule rather than a colour wash, so a long queue of
+   overdue rows is still readable. */
+.mq-row.stale { border-left: 3px solid var(--red); }
+.mq-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: .85rem; }
+.mq-wait { margin-left: auto; font-weight: 700; font-variant-numeric: tabular-nums; }
+.mq-row.stale .mq-wait { color: var(--red); }
+.mq-title { margin: 8px 0 2px; font-weight: 650; }
+.mq-body {
+  margin: 4px 0 0; color: var(--ink-2); white-space: pre-wrap;
+  overflow-wrap: anywhere; max-height: 7.5em; overflow: hidden;
+}
+.mq-note { margin: 8px 0 0; font-size: .9rem; color: var(--muted); font-style: italic; }
+.mq-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+.mq-remove { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.mq-remove input {
+  padding: 7px 11px; border: 1px solid var(--line); border-radius: var(--radius);
+  font: inherit; min-width: 240px;
+}
+
+/* ============================================================================
+   Language picker — the other half of "English by default" (ADR 0017).
+   Sits beside the city pill and matches it, because they are two preferences of
+   the same kind: where the ceremony is, and what the reader reads.
+   ========================================================================== */
+
+.lang-wrap { position: relative; flex: none; }
+.lang-pill {
+  display: flex; align-items: center; gap: 6px;
+  padding: 5px 12px; border: 1px solid #334155; border-radius: 999px;
+  background: #1E293B; color: #CBD5E1;
+  font: inherit; font-size: .85rem; font-weight: 600; cursor: pointer;
+  white-space: nowrap;
+}
+.lang-pill:hover { background: #263449; color: #fff; }
+.lang-name { max-width: 12ch; overflow: hidden; text-overflow: ellipsis; }
+
+/* Opens upward: this lives at the foot of the page. */
+.lang-wrap.up .lang-menu { top: auto; bottom: calc(100% + 8px); left: 0; right: auto; }
+
+.lang-menu {
+  position: absolute; top: calc(100% + 8px); right: 0; z-index: 70;
+  min-width: 190px; margin: 0; padding: 6px; list-style: none;
+  background: var(--white); border: 1px solid var(--line);
+  border-radius: var(--radius); box-shadow: var(--shadow-lg);
+}
+.lang-opt {
+  display: flex; align-items: baseline; gap: 10px; width: 100%;
+  padding: 9px 12px; border: 0; border-radius: var(--radius-sm);
+  background: transparent; font: inherit; text-align: left; cursor: pointer;
+}
+.lang-opt:hover { background: var(--line-soft); }
+.lang-opt.on { background: var(--orange-50); color: var(--orange-700); }
+/* The native name is the one being scanned for, so it leads and it is larger. */
+.lang-native { font-weight: 650; font-size: 1rem; }
+.lang-en { font-size: .82rem; }
+
+/* ---------------------------------------------------------------------------
+   The one-time language offer.
+
+   Sits directly under the header on a first visit, written in the language it is
+   offering. Deliberately NOT a modal: it must not block the page for the majority
+   who are happy in English, and a reader who ignores it loses nothing.
+   ------------------------------------------------------------------------- */
+.lang-offer {
+  display: flex; align-items: center; justify-content: center; gap: 14px;
+  flex-wrap: wrap; padding: 10px var(--gutter);
+  background: var(--cream); border-bottom: 1px solid var(--cream-2);
+}
+.lang-offer p { margin: 0; font-weight: 600; color: #92400E; }
+.lang-offer-actions { display: flex; align-items: center; gap: 8px; }
+
+/* ============================================================================
+   Community — Ask a Purohit
+   
+   The one surface where the page does not belong to a single region, so type is
+   set per item from the writer's own script (see components/community/post.tsx)
+   and nothing here assumes a font. Rules below are layout and hierarchy only.
+   ========================================================================== */
+
+.cm-wrap { max-width: 760px; padding-top: 28px; padding-bottom: 72px; }
+.cm-head h1 { margin: 0 0 6px; font-size: 1.6rem; letter-spacing: -.02em; }
+.cm-blurb { margin: 0 0 20px; max-width: 58ch; font-size: .95rem; }
+
+.cm-controls {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; flex-wrap: wrap; margin-bottom: 24px;
+}
+.cm-scope { display: flex; gap: 8px; }
+.cm-scope .chip { cursor: pointer; border: 1px solid var(--line); background: var(--white); }
+.cm-scope .chip.on { background: var(--orange-50); border-color: var(--orange); color: var(--orange-700); }
+
+.cm-list { display: flex; flex-direction: column; gap: 14px; }
+
+.cm-card {
+  display: block; padding: 18px; border: 1px solid var(--line);
+  border-radius: var(--radius-lg); background: var(--white);
+  text-decoration: none; color: inherit; box-shadow: var(--shadow-sm);
+  transition: border-color .15s, box-shadow .15s;
+}
+.cm-card:hover { border-color: var(--orange); box-shadow: var(--shadow-md); }
+.cm-title { margin: 0 0 8px; font-size: 1.06rem; font-weight: 650; line-height: 1.35; }
+
+/* Three lines of the body as a preview. The full text is on the thread page. */
+.cm-card .cm-body {
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;
+  overflow: hidden; margin: 0;
+}
+.cm-body { margin: 10px 0; color: var(--ink-2); white-space: pre-wrap; overflow-wrap: anywhere; }
+
+/*
+ * A stripped contact detail, shown rather than silently erased.
+ *
+ * The reader should be able to tell that something was removed and roughly what —
+ * a gap with no explanation reads as a bug, and a purohit whose number was stripped
+ * needs to see that it happened rather than wonder why nobody called.
+ */
+.cm-redacted {
+  display: inline-block; padding: 1px 7px; margin: 0 2px;
+  border-radius: 999px; background: var(--line-soft); color: var(--muted);
+  font-size: .8em; white-space: nowrap; cursor: help;
+}
+
+.cm-foot {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; flex-wrap: wrap; margin-top: 12px;
+}
+.cm-counts { font-size: .86rem; white-space: nowrap; }
+
+.cm-author { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.cm-avatar {
+  width: 28px; height: 28px; flex: none; border-radius: 50%;
+  display: grid; place-items: center; overflow: hidden;
+  background: var(--line-soft); color: var(--muted);
+  font-size: .82rem; font-weight: 700; text-transform: uppercase;
+}
+.cm-avatar.verified { background: var(--orange-100); color: var(--orange-700); }
+.cm-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.cm-author-name { font-weight: 600; font-size: .9rem; overflow: hidden; text-overflow: ellipsis; }
+.cm-tick { color: var(--green); font-weight: 800; }
+.cm-small { font-size: .82rem; }
+
+/* The panjika qualifier. Visible, because an answer about a tithi is only true
+   under one almanac and an unlabelled one is wrong in half the country. */
+.cm-school {
+  display: inline-block; margin-top: 8px; padding: 2px 10px;
+  border-radius: 999px; background: var(--cream-2); color: #92400E;
+  font-size: .8rem; font-weight: 600;
+}
+
+.cm-back { display: inline-block; margin-bottom: 14px; }
+.cm-question { padding-bottom: 20px; border-bottom: 1px solid var(--line); }
+.cm-question h1 { margin: 0 0 10px; font-size: 1.35rem; line-height: 1.35; letter-spacing: -.01em; }
+
+/*
+ * A verified answer is separated, not merely first.
+ *
+ * Server-side ordering already puts it at the top, but "first" stops being visible
+ * the moment a reader scrolls — and the whole authority argument for this surface
+ * rests on the difference between a shastri and a neighbour being legible at a
+ * glance.
+ */
+.cm-answer {
+  margin: 18px 0; padding: 16px 18px;
+  border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--white);
+}
+.cm-answer.verified { border-color: var(--orange-100); background: var(--orange-50); }
+.cm-answer.accepted { border-color: var(--green); box-shadow: 0 0 0 1px var(--green-100); }
+
+.cm-badge {
+  display: inline-block; margin-bottom: 10px; padding: 3px 10px;
+  border-radius: 999px; background: var(--orange-100); color: var(--orange-700);
+  font-size: .78rem; font-weight: 700;
+}
+.cm-badge.accepted { background: var(--green-100); color: var(--green); margin-left: 6px; }
+
+.cm-agree { margin: 8px 0 0; color: var(--green); font-size: .86rem; font-weight: 600; }
+
+.cm-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+.cm-actions .btn.ghost.on { background: var(--orange-100); color: var(--orange-700); }
+.cm-report { margin-left: auto; color: var(--faint); }
+
+.cm-replies { margin-top: 12px; padding-left: 14px; border-left: 2px solid var(--line); }
+.cm-reply { margin-top: 10px; }
+.cm-reply .cm-body { margin: 4px 0 0; font-size: .94rem; }
+
+.cm-others { margin-top: 26px; }
+.cm-others > summary {
+  cursor: pointer; font-weight: 600; color: var(--muted);
+  padding: 10px 0; border-top: 1px solid var(--line);
+}
+
+.cm-composer { margin-top: 28px; display: flex; flex-direction: column; gap: 8px; }
+.cm-composer label { font-weight: 600; font-size: .9rem; }
+.cm-composer-foot { display: flex; gap: 10px; align-items: center; justify-content: flex-end; }
+
+/* A form reads better narrower than a feed: one column of fields, not a wide one. */
+.cm-ask { max-width: 640px; }
+.cm-form { display: flex; flex-direction: column; gap: 18px; margin-top: 18px; }
+/* Fields come from components/field.tsx and style through `.field`. */
+.cm-form input, .cm-form textarea, .cm-form select, .cm-composer textarea, .cm-composer select {
+  padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--radius);
+  font: inherit; font-weight: 400; color: var(--ink); background: var(--white);
+}
+.cm-form textarea, .cm-composer textarea { resize: vertical; line-height: 1.6; }
+.cm-scope-field { border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; }
+.cm-scope-field legend { padding: 0 6px; font-weight: 600; font-size: .92rem; }
+.cm-radio { flex-direction: row !important; align-items: center; gap: 8px; font-weight: 400 !important; }
+
+.cm-notice {
+  margin: 4px 0 0; padding: 12px 14px; border-radius: var(--radius);
+  background: var(--cream); border: 1px solid var(--cream-2); color: #92400E;
+  font-size: .92rem;
+}
+.cm-error { color: var(--red); }
+.cm-empty { padding: 32px 0; text-align: center; }
+.cm-more { margin: 20px auto 0; display: block; }
+.cm-note { margin-top: 24px; }
+.cm-accept { margin-top: 10px; }
+
+@media (max-width: 560px) {
+  .cm-controls { align-items: stretch; }
+  .cm-scope { flex: 1; }
+  .cm-report { margin-left: 0; }
+}

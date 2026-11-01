@@ -113,3 +113,41 @@ export const surgeRules = pgTable('surge_rules', {
 }, (t) => ({
   uniq: uniqueIndex('surge_rules_uniq').on(t.cityId, t.date, t.ritualId),
 }));
+
+/**
+ * Transcribed festival dates, per school.
+ *
+ * SCHOOL-SCOPED, NOT CITY-SCOPED, and that is the honest shape. A panjika is a
+ * publication: Gupta Press gives one date for Vijaya Dashami and it is that date
+ * wherever the household keeping Gupta Press happens to live. `muhurat_flags` is
+ * city-scoped because a muhurat depends on sunrise, which moves with longitude; a
+ * festival date does not. Scoping these by city would multiply the transcription
+ * work by fourteen and invite fourteen copies to drift apart.
+ *
+ * Which festivals a CITY marks is a different question, answered by `festivalsFor`
+ * in `packages/region` — Kolkata keeps Durga Puja, Chennai keeps Pongal, and the
+ * catalogue says so without any date in it.
+ *
+ * Empty is a valid state and means the countdown shows only the monthly tithi
+ * observances, which are derivable. Nothing here is computed: a date arrives by
+ * being read out of an almanac, because ADR 0003's whole premise is that the
+ * almanacs disagree and we do not get a vote.
+ */
+export const festivalDates = pgTable('festival_dates', {
+  id: id(),
+  school: panjikaSchoolEnum('school').notNull(),
+  /** A `Festival.id` from packages/region. Not a foreign key — the catalogue is code. */
+  festivalId: text('festival_id').notNull(),
+  date: date('date').notNull(),
+  /** Last day, for the four- and nine-day observances. Null means a single day. */
+  endsOn: date('ends_on'),
+  /** 'manual_panjika' for a transcription; 'api' if a provider ever supplies these. */
+  source: panchangSourceEnum('source').notNull().default('manual_panjika'),
+  enteredBy: text('entered_by').references(() => users.id),
+  createdAt: created(),
+}, (t) => ({
+  /** One date per festival per school per year; re-transcribing replaces it. */
+  uniq: uniqueIndex('festival_dates_uniq').on(t.school, t.festivalId, t.date),
+  /** The countdown's only query: what is coming, for this school. */
+  upcoming: index('festival_dates_upcoming').on(t.school, t.date),
+}));

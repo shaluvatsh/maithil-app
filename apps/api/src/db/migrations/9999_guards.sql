@@ -61,9 +61,19 @@ CREATE UNIQUE INDEX surge_rules_citywide_uniq
 
 
 -- 3. BOOKING SANITY ------------------------------------------------------------
+-- A span is at least one slot, and no more than a whole day.
+--
+-- This used to read `slot_idx + slot_span <= 4` — Kolkata's four-slot day, written
+-- into the schema as though it were a property of bookings. It refused evening
+-- bookings outright in the five-slot southern cities, and it capped how long a
+-- ritual could be: a full Chandi Paath spans most of a day and could only start at
+-- dawn. Overlap is guaranteed by `bookings_pandit_no_overlap` (migration 0018), an
+-- exclusion constraint over the real interval, which does not care how a city
+-- divides its day. See A0001_long_rituals.sql, which applies this to databases
+-- built before it changed here.
 ALTER TABLE bookings
   ADD CONSTRAINT booking_slot_span_valid
-  CHECK (slot_span >= 1 AND slot_idx + slot_span <= 4);
+  CHECK (slot_span >= 1 AND slot_span <= 8);
 
 ALTER TABLE bookings
   ADD CONSTRAINT booking_window_ordered

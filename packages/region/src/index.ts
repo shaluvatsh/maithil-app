@@ -69,3 +69,4 @@ export function computableSchool(region: Region): PanjikaId {
   }
   return drik.id;
 }
+export * from './festivals';

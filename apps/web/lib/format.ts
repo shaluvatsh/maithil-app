@@ -1,11 +1,13 @@
-export const rs = (paise: number): string =>
-  new Intl.NumberFormat('en-IN', {
-    style: 'currency', currency: 'INR',
-    minimumFractionDigits: 0, maximumFractionDigits: 2,
-  }).format(paise / 100);
-
-
-export const SLOT_LABELS_EN = ['6–9 am', '9:30 am–12:30 pm', '1–4 pm', '4:30–7:30 pm'];
+/*
+ * `rs()` and `SLOT_LABELS_EN` used to live here: a hardcoded `en-IN`/`INR` formatter
+ * and a four-element array of Kolkata's slot windows. Both are city data, and both
+ * already exist per-region in `packages/region` — so the purohit and admin screens
+ * were showing every city Kolkata's times and numerals while every other screen used
+ * `useRegion()`. The southern cities run FIVE slots on different boundaries, so the
+ * array was not merely mislabelled there, it was short: `SLOT_LABELS_EN[4]` rendered
+ * blank. Use `useRegion()`'s `money` and `slotLabel` instead; there is no second copy
+ * to drift.
+ */
 
 /**
  * What a booking state means — to the person reading it.

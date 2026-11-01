@@ -1,0 +1,142 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Marcellus&family=Noto+Sans+Bengali:wght@400;500;600&family=Noto+Serif+Devanagari:wght@600&display=swap">
+  <style>
+    body { margin: 0; }
+    a { color: #C2410C; } a:hover { color: #6B1F14; }
+    .lbl { font-family: 'Noto Sans Bengali', system-ui, sans-serif; font-size: 13px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; color: #8A7A63; }
+    .note { font-family: 'Noto Sans Bengali', system-ui, sans-serif; font-size: 15px; color: #5C5040; line-height: 1.5; }
+    .hex { font-family: ui-monospace, Menlo, monospace; font-size: 13px; letter-spacing: -0.01em; }
+    .tok { font-family: ui-monospace, Menlo, monospace; font-size: 12px; color: #8A7A63; }
+  </style>
+</helmet>
+
+<div style="width: 1200px; height: 1180px; background: #F7F3E9; padding: 64px 72px; box-sizing: border-box; font-family: 'Noto Sans Bengali', system-ui, sans-serif; display: flex; flex-direction: column; gap: 46px;">
+
+  <div style="display: flex; flex-direction: column; gap: 10px; border-bottom: 2px solid #2A1D12; padding-bottom: 18px;">
+    <div class="lbl">Wordmark &amp; palette</div>
+    <div style="font-family: Marcellus, Georgia, serif; font-size: 40px; color: #2A1D12;">Lockups</div>
+    <div class="note" style="max-width: 66ch;">Marcellus replaces Inter for the wordmark only — the product UI keeps its existing type. The ॐ tile keeps the nav's cream ground and 10 px radius, scaled proportionally.</div>
+  </div>
+
+  <!-- Lockups -->
+  <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 32px;">
+
+    <div style="display: flex; flex-direction: column; gap: 14px;">
+      <div style="background: #FFFFFF; border: 1px solid #E8E0CE; border-radius: 16px; padding: 52px 44px; display: flex; align-items: center; gap: 18px;">
+        <div style="width: 64px; height: 64px; border-radius: 15px; background: #FFFBEB; border: 1px solid #FEF3C7; display: grid; place-items: center; font-family: 'Noto Serif Devanagari', Georgia, serif; font-size: 36px; font-weight: 600; color: #C2410C; line-height: 1;">ॐ</div>
+        <div style="font-family: Marcellus, Georgia, serif; font-size: 44px; color: #C2410C;">TheMaithil</div>
+      </div>
+      <div class="lbl">Horizontal · on white</div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 14px;">
+      <div style="background: #2A1D12; border-radius: 16px; padding: 52px 44px; display: flex; align-items: center; gap: 18px;">
+        <div style="width: 64px; height: 64px; border-radius: 15px; background: #FFFBEB; display: grid; place-items: center; font-family: 'Noto Serif Devanagari', Georgia, serif; font-size: 36px; font-weight: 600; color: #C2410C; line-height: 1;">ॐ</div>
+        <div style="font-family: Marcellus, Georgia, serif; font-size: 44px; color: #FFFBEB;">TheMaithil</div>
+      </div>
+      <div class="lbl">Horizontal · on umber</div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 14px;">
+      <div style="background: #FFFFFF; border: 1px solid #E8E0CE; border-radius: 16px; padding: 44px; display: flex; flex-direction: column; align-items: center; gap: 16px;">
+        <div style="width: 72px; height: 72px; border-radius: 17px; background: #FFFBEB; border: 1px solid #FEF3C7; display: grid; place-items: center; font-family: 'Noto Serif Devanagari', Georgia, serif; font-size: 40px; font-weight: 600; color: #C2410C; line-height: 1;">ॐ</div>
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 7px;">
+          <div style="font-family: Marcellus, Georgia, serif; font-size: 38px; color: #C2410C; line-height: 1;">TheMaithil</div>
+          <div style="font-size: 14px; font-weight: 500; letter-spacing: 0.22em; text-transform: uppercase; color: #8A7A63;">Kolkata</div>
+        </div>
+      </div>
+      <div class="lbl">Stacked · with city line</div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 14px;">
+      <div style="background: #6B1F14; border-radius: 16px; padding: 44px; display: flex; align-items: center; justify-content: center; gap: 30px;">
+        <div style="width: 82px; height: 82px; border-radius: 19px; background: #FFFBEB; display: grid; place-items: center; font-family: 'Noto Serif Devanagari', Georgia, serif; font-size: 46px; font-weight: 600; color: #C2410C; line-height: 1;">ॐ</div>
+        <svg width="60" height="60" viewBox="0 0 200 200" aria-hidden="true">
+          <path d="M100 34 C 117 62 130 78 130 100 C 130 121 116 135 100 135 C 84 135 70 121 70 100 C 70 78 83 62 100 34 Z" fill="#E8A33D"></path>
+          <path d="M100 76 C 108 91 113 99 113 109 C 113 119 107 126 100 126 C 93 126 87 119 87 109 C 87 99 92 91 100 76 Z" fill="#FFF3D4"></path>
+          <path d="M30 140 L 170 140 C 163 170 134 185 100 185 C 66 185 37 170 30 140 Z" fill="#B8862B"></path>
+          <rect x="26" y="133" width="148" height="10" rx="5" fill="#E8C077"></rect>
+        </svg>
+      </div>
+      <div class="lbl">Marks alone · minimum clear space = tile height ÷ 2</div>
+    </div>
+  </div>
+
+  <!-- Palette -->
+  <div style="display: flex; flex-direction: column; gap: 18px;">
+    <div style="display: flex; align-items: baseline; gap: 14px; border-top: 1px solid #DDD4BF; padding-top: 26px;">
+      <div style="font-family: Marcellus, Georgia, serif; font-size: 26px; color: #2A1D12;">Palette</div>
+      <div class="note" style="color: #8A7A63;">read off the hero photograph; three are existing tokens</div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 16px;">
+      <div style="display: flex; flex-direction: column; gap: 9px;">
+        <div style="height: 96px; border-radius: 12px; background: #2A1D12;"></div>
+        <div style="display: flex; flex-direction: column; gap: 2px;">
+          <div style="font-size: 14px; font-weight: 600; color: #2A1D12;">Umber</div>
+          <div class="hex" style="color: #5C5040;">#2A1D12</div>
+          <div class="tok">globals.css:211</div>
+        </div>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 9px;">
+        <div style="height: 96px; border-radius: 12px; background: #6B1F14;"></div>
+        <div style="display: flex; flex-direction: column; gap: 2px;">
+          <div style="font-size: 14px; font-weight: 600; color: #2A1D12;">Oxblood</div>
+          <div class="hex" style="color: #5C5040;">#6B1F14</div>
+          <div class="tok">new</div>
+        </div>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 9px;">
+        <div style="height: 96px; border-radius: 12px; background: #C2410C;"></div>
+        <div style="display: flex; flex-direction: column; gap: 2px;">
+          <div style="font-size: 14px; font-weight: 600; color: #2A1D12;">Sindoor</div>
+          <div class="hex" style="color: #5C5040;">#C2410C</div>
+          <div class="tok">--orange-700</div>
+        </div>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 9px;">
+        <div style="height: 96px; border-radius: 12px; background: #B8862B;"></div>
+        <div style="display: flex; flex-direction: column; gap: 2px;">
+          <div style="font-size: 14px; font-weight: 600; color: #2A1D12;">Brass</div>
+          <div class="hex" style="color: #5C5040;">#B8862B</div>
+          <div class="tok">new</div>
+        </div>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 9px;">
+        <div style="height: 96px; border-radius: 12px; background: #E8A33D;"></div>
+        <div style="display: flex; flex-direction: column; gap: 2px;">
+          <div style="font-size: 14px; font-weight: 600; color: #2A1D12;">Marigold</div>
+          <div class="hex" style="color: #5C5040;">#E8A33D</div>
+          <div class="tok">new</div>
+        </div>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 9px;">
+        <div style="height: 96px; border-radius: 12px; background: #FFFBEB; border: 1px solid #E8E0CE;"></div>
+        <div style="display: flex; flex-direction: column; gap: 2px;">
+          <div style="font-size: 14px; font-weight: 600; color: #2A1D12;">Cream</div>
+          <div class="hex" style="color: #5C5040;">#FFFBEB</div>
+          <div class="tok">--cream</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="note" style="max-width: 78ch; padding-top: 6px;">
+      The site's <span class="hex">#F97316</span> stays where it is in the product UI. It is not on these
+      surfaces because it goes muddy against umber and reads as a generic notification orange in a
+      chat thread; <span class="hex">#C2410C</span> is already the Razorpay Checkout theme colour in
+      <span class="hex">lib/checkout.ts</span>, so the whole paid journey stays one hue.
+    </div>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

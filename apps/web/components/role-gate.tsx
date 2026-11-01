@@ -40,8 +40,22 @@ export function RoleGate({ children }: { children: React.ReactNode }) {
     setRole(roleOf(Boolean(auth.token), auth.role));
   }, [path]);
 
+  /**
+   * A guest on a closed route is not in the WRONG place — they are in the right
+   * place, not signed in yet. Sending them to `homeFor('guest')` (the homepage)
+   * pre-empted each page's own `/login?next=…` redirect, which never ran because
+   * this unmounted the page first. Following a shared or bookmarked link to
+   * `/account` dropped you on the homepage with no explanation and no way back to
+   * where you were going. Signed-in roles still go to their own home: a purohit on
+   * `/account` genuinely is in the wrong place.
+   */
   useEffect(() => {
-    if (role && !canAccess(role, path)) router.replace(homeFor(role));
+    if (!role || canAccess(role, path)) return;
+    router.replace(
+      role === 'guest'
+        ? `/login?next=${encodeURIComponent(path)}`
+        : homeFor(role),
+    );
   }, [role, path, router]);
 
   // The common case, and the only one that renders on the server.
@@ -58,7 +72,9 @@ export function RoleGate({ children }: { children: React.ReactNode }) {
   if (!canAccess(role, path)) {
     return (
       <div className="wrap gate-wait">
-        <p className="muted">Taking you to your own pages…</p>
+        <p className="muted">
+          {role === 'guest' ? 'Taking you to sign in…' : 'Taking you to your own pages…'}
+        </p>
       </div>
     );
   }

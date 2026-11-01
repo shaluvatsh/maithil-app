@@ -1,0 +1,126 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Marcellus&family=Noto+Sans+Bengali:wght@400;500;600&family=Noto+Serif+Devanagari:wght@600&display=swap">
+  <style>
+    body { margin: 0; }
+    a { color: #C2410C; } a:hover { color: #6B1F14; }
+    .lbl { font-family: 'Noto Sans Bengali', system-ui, sans-serif; font-size: 13px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; color: #8A7A63; }
+    .note { font-family: 'Noto Sans Bengali', system-ui, sans-serif; font-size: 15px; color: #5C5040; line-height: 1.5; }
+  </style>
+</helmet>
+
+<div style="width: 1200px; height: 1340px; background: #F7F3E9; padding: 64px 72px; box-sizing: border-box; font-family: 'Noto Sans Bengali', system-ui, sans-serif; display: flex; flex-direction: column; gap: 44px;">
+
+  <div style="display: flex; flex-direction: column; gap: 10px; border-bottom: 2px solid #2A1D12; padding-bottom: 18px;">
+    <div class="lbl">App icon &amp; favicon</div>
+    <div style="font-family: Marcellus, Georgia, serif; font-size: 40px; color: #2A1D12;">Two marks, drawn per size</div>
+    <div class="note" style="max-width: 62ch;">Each size is drawn, not scaled down from one artwork. The 32 px favicon inverts so the mark survives against a browser tab strip, where a cream tile disappears into the chrome.</div>
+  </div>
+
+  <!-- Option A -->
+  <div style="display: flex; flex-direction: column; gap: 20px;">
+    <div style="display: flex; align-items: baseline; gap: 14px;">
+      <div style="font-family: Marcellus, Georgia, serif; font-size: 26px; color: #2A1D12;">Option A — ॐ, the mark already in the nav</div>
+      <div class="note" style="color: #8A7A63;">keeps <span style="font-family: ui-monospace, Menlo, monospace; font-size: 13px;">nav.tsx</span> unchanged</div>
+    </div>
+
+    <div style="display: flex; align-items: flex-end; gap: 44px;">
+      <div style="display: flex; flex-direction: column; gap: 12px;">
+        <div style="width: 512px; height: 512px; border-radius: 116px; background: #FFFBEB; border: 4px solid #FEF3C7; display: grid; place-items: center; font-family: 'Noto Serif Devanagari', Georgia, serif; font-size: 300px; font-weight: 600; color: #C2410C; line-height: 1;">ॐ</div>
+        <div class="lbl">512 px · store</div>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 12px;">
+        <div style="width: 180px; height: 180px; border-radius: 41px; background: #FFFBEB; border: 2px solid #FEF3C7; display: grid; place-items: center; font-family: 'Noto Serif Devanagari', Georgia, serif; font-size: 106px; font-weight: 600; color: #C2410C; line-height: 1;">ॐ</div>
+        <div class="lbl">180 px · touch</div>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 12px;">
+        <div style="width: 32px; height: 32px; border-radius: 7px; background: #C2410C; display: grid; place-items: center; font-family: 'Noto Serif Devanagari', Georgia, serif; font-size: 22px; font-weight: 600; color: #FFFBEB; line-height: 1;">ॐ</div>
+        <div class="lbl">32</div>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 12px;">
+        <div style="width: 192px; height: 192px; border-radius: 42px; background: #C2410C; display: grid; place-items: center; font-family: 'Noto Serif Devanagari', Georgia, serif; font-size: 132px; font-weight: 600; color: #FFFBEB; line-height: 1;">ॐ</div>
+        <div class="lbl">32 px at 6× · inverted</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Option B -->
+  <div style="display: flex; flex-direction: column; gap: 20px;">
+    <div style="display: flex; align-items: baseline; gap: 14px;">
+      <div style="font-family: Marcellus, Georgia, serif; font-size: 26px; color: #2A1D12;">Option B — the diya</div>
+      <div class="note" style="color: #8A7A63;">holds its silhouette at 16 px; ॐ does not</div>
+    </div>
+
+    <div style="display: flex; align-items: flex-end; gap: 44px;">
+      <div style="display: flex; flex-direction: column; gap: 12px;">
+        <div style="width: 512px; height: 512px; border-radius: 116px; background: #6B1F14; display: grid; place-items: center;">
+          <svg width="320" height="320" viewBox="0 0 200 200" aria-hidden="true">
+            <defs>
+              <linearGradient id="ic-flame-a" x1="0" y1="1" x2="0" y2="0">
+                <stop offset="0%" stop-color="#C2410C"></stop>
+                <stop offset="48%" stop-color="#E8A33D"></stop>
+                <stop offset="100%" stop-color="#FFF3D4"></stop>
+              </linearGradient>
+              <linearGradient id="ic-bowl-a" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stop-color="#D9A64A"></stop>
+                <stop offset="52%" stop-color="#B8862B"></stop>
+                <stop offset="100%" stop-color="#7C5716"></stop>
+              </linearGradient>
+            </defs>
+            <path d="M100 34 C 117 62 130 78 130 100 C 130 121 116 135 100 135 C 84 135 70 121 70 100 C 70 78 83 62 100 34 Z" fill="url(#ic-flame-a)"></path>
+            <path d="M100 72 C 109 89 114 98 114 109 C 114 120 108 128 100 128 C 92 128 86 120 86 109 C 86 98 91 89 100 72 Z" fill="#FFF3D4" opacity="0.8"></path>
+            <path d="M30 140 L 170 140 C 163 170 134 185 100 185 C 66 185 37 170 30 140 Z" fill="url(#ic-bowl-a)"></path>
+            <rect x="26" y="133" width="148" height="10" rx="5" fill="#E8C077"></rect>
+          </svg>
+        </div>
+        <div class="lbl">512 px · store</div>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 12px;">
+        <div style="width: 180px; height: 180px; border-radius: 41px; background: #6B1F14; display: grid; place-items: center;">
+          <svg width="116" height="116" viewBox="0 0 200 200" aria-hidden="true">
+            <path d="M100 34 C 117 62 130 78 130 100 C 130 121 116 135 100 135 C 84 135 70 121 70 100 C 70 78 83 62 100 34 Z" fill="#E8A33D"></path>
+            <path d="M100 76 C 108 91 113 99 113 109 C 113 119 107 126 100 126 C 93 126 87 119 87 109 C 87 99 92 91 100 76 Z" fill="#FFF3D4"></path>
+            <path d="M30 140 L 170 140 C 163 170 134 185 100 185 C 66 185 37 170 30 140 Z" fill="#B8862B"></path>
+            <rect x="26" y="133" width="148" height="10" rx="5" fill="#E8C077"></rect>
+          </svg>
+        </div>
+        <div class="lbl">180 px · touch</div>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 12px;">
+        <div style="width: 32px; height: 32px; border-radius: 7px; background: #6B1F14; display: grid; place-items: center;">
+          <svg width="21" height="21" viewBox="0 0 200 200" aria-hidden="true">
+            <path d="M100 30 C 118 60 132 78 132 101 C 132 123 117 138 100 138 C 83 138 68 123 68 101 C 68 78 82 60 100 30 Z" fill="#E8A33D"></path>
+            <path d="M26 146 L 174 146 C 166 176 135 190 100 190 C 65 190 34 176 26 146 Z" fill="#E8C077"></path>
+          </svg>
+        </div>
+        <div class="lbl">32</div>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 12px;">
+        <div style="width: 192px; height: 192px; border-radius: 42px; background: #6B1F14; display: grid; place-items: center;">
+          <svg width="126" height="126" viewBox="0 0 200 200" aria-hidden="true">
+            <path d="M100 30 C 118 60 132 78 132 101 C 132 123 117 138 100 138 C 83 138 68 123 68 101 C 68 78 82 60 100 30 Z" fill="#E8A33D"></path>
+            <path d="M26 146 L 174 146 C 166 176 135 190 100 190 C 65 190 34 176 26 146 Z" fill="#E8C077"></path>
+          </svg>
+        </div>
+        <div class="lbl">32 px at 6× · two shapes only</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

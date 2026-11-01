@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { whatsappLink, EMAIL, PHONE_DISPLAY, PHONE_HREF } from '@/lib/contact';
+import { whatsappLink, EMAIL } from '@/lib/contact';
 
 export const metadata: Metadata = {
   title: 'Contact us — TheMaithil',

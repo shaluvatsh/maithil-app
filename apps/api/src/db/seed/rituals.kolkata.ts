@@ -2,9 +2,19 @@
  * Kolkata launch catalogue - 25 rituals.
  *
  * NOT the generic North/West Indian list from the PRD. A Kolkata purohit is asked
- * for Annaprashan, not Namkaran; Upanayan, not Janeu; Halkhata every Poila Boishakh.
- * Bengali is the PRIMARY locale here - a 55-year-old purohit will use the app in
- * Bengali or not at all. See ADR 0009.
+ * for Annaprashan, not Namkaran; Upanayan, not Janeu; a ledger blessed every Poila
+ * Boishakh. Bengali is the PRIMARY locale here - a 55-year-old purohit will use the
+ * app in Bengali or not at all. See ADR 0009.
+ *
+ * The RITUALS this launches with are still Kolkata's own - `bn` stays each one's
+ * primary voice, and `hi` its own proper translation. But `en` is what the rest of
+ * the country (`getRituals(citySlug, 'en')` is the default for every OTHER city)
+ * reads as the name itself, not a translation of one - so it carries the term
+ * recognised nationally rather than the Bengali transliteration a Kolkata purohit
+ * would use, wherever the two differ for the exact same rite: Vastu over Bastu,
+ * kalash over ghot, Sharad Purnima over Kojagari. The Bengali term is never lost -
+ * it stays the `bn` name and, where a devotee might search for it, an alias in
+ * `ritual-presentation.ts` - it is just not what a devotee outside Bengal sees first.
  *
  * durationMin drives slotSpan (3h slots): anything over ~170 min needs two.
  * Prices are Kolkata dakshina bands in paise, illustrative - validate with the
@@ -24,6 +34,14 @@ export interface RitualSeed {
    * 25 traditional rituals. Virtual services have no travel and no samagri.
    */
   deliveryMode?: 'at_home' | 'virtual';
+  /**
+   * Consecutive days. Omitted means one, which is true of everything except the
+   * festival pujas that genuinely run over several — see `days` on the table.
+   *
+   * `durationMin` and `slotSpan` describe ONE day of it, not the whole series: a
+   * four-day Durga Puja is four four-hour bookings, not one sixteen-hour one.
+   */
+  days?: number;
 }
 
 const R = (n: number) => n * 100; // rupees -> paise
@@ -33,17 +51,17 @@ export const KOLKATA_RITUALS: RitualSeed[] = [
     bandMin: R(1100), bandMax: R(2500), bandDefault: R(1500),
     names: { bn: 'সত্যনারায়ণ পূজা', hi: 'सत्यनारायण पूजा', en: 'Satyanarayan Puja' },
     short: { bn: 'সিন্নি সহ পূর্ণাঙ্গ সত্যনারায়ণ কথা ও পূজা',
-             en: 'Full Satyanarayan katha and puja with sinni' } },
+             en: 'Full Satyanarayan katha and puja with prasad' } },
 
   { slug: 'griha-prabesh', durationMin: 180, slotSpan: 1, muhuratSensitive: true,
     bandMin: R(2100), bandMax: R(5100), bandDefault: R(3100),
-    names: { bn: 'গৃহপ্রবেশ', hi: 'गृह प्रवेश', en: 'Griha Prabesh' },
+    names: { bn: 'গৃহপ্রবেশ', hi: 'गृह प्रवेश', en: 'Griha Pravesh' },
     short: { bn: 'নতুন বাড়িতে প্রবেশের পূজা ও হোম',
              en: 'House-warming puja with homa' } },
 
   { slug: 'annaprashan', durationMin: 150, slotSpan: 1, muhuratSensitive: true,
     bandMin: R(2100), bandMax: R(4100), bandDefault: R(2500),
-    names: { bn: 'অন্নপ্রাশন (মুখেভাত)', hi: 'अन्नप्राशन', en: 'Annaprashan (Mukhe Bhaat)' },
+    names: { bn: 'অন্নপ্রাশন (মুখেভাত)', hi: 'अन्नप्राशन', en: 'Annaprashan' },
     short: { bn: 'শিশুর প্রথম অন্নগ্রহণের অনুষ্ঠান',
              en: "Baby's first rice ceremony" } },
 
@@ -55,9 +73,9 @@ export const KOLKATA_RITUALS: RitualSeed[] = [
 
   { slug: 'biye', durationMin: 360, slotSpan: 2, muhuratSensitive: true,
     bandMin: R(11000), bandMax: R(31000), bandDefault: R(15100),
-    names: { bn: 'বিবাহ', hi: 'विवाह', en: 'Bengali Wedding' },
+    names: { bn: 'বিবাহ', hi: 'विवाह', en: 'Wedding Ceremony' },
     short: { bn: 'সম্পূর্ণ বাঙালি বিবাহ অনুষ্ঠান (লগ্ন অনুযায়ী)',
-             en: 'Complete Bengali wedding ceremony, timed to the lagna' } },
+             en: 'Complete Hindu wedding ceremony, timed to the lagna' } },
 
   { slug: 'sraddha', durationMin: 240, slotSpan: 2, muhuratSensitive: true,
     bandMin: R(3100), bandMax: R(8100), bandDefault: R(5100),
@@ -73,9 +91,9 @@ export const KOLKATA_RITUALS: RitualSeed[] = [
 
   { slug: 'durga-puja-ghot', durationMin: 240, slotSpan: 2, muhuratSensitive: true,
     bandMin: R(8100), bandMax: R(25000), bandDefault: R(12100),
-    names: { bn: 'দুর্গা পূজা (ঘট)', hi: 'दुर्गा पूजा', en: 'Durga Puja (Ghot, at home)' },
+    names: { bn: 'দুর্গা পূজা (ঘট)', hi: 'दुर्गा पूजा', en: 'Durga Puja (Kalash Sthapana, at home)' },
     short: { bn: 'বাড়িতে ঘট স্থাপন করে দুর্গা পূজা',
-             en: 'Home Durga Puja with ghot installation' } },
+             en: 'Home Durga Puja with kalash installation' } },
 
   { slug: 'kali-puja', durationMin: 180, slotSpan: 1, muhuratSensitive: true,
     bandMin: R(3100), bandMax: R(9100), bandDefault: R(5100),
@@ -84,9 +102,9 @@ export const KOLKATA_RITUALS: RitualSeed[] = [
 
   { slug: 'lakshmi-puja', durationMin: 120, slotSpan: 1, muhuratSensitive: true,
     bandMin: R(1100), bandMax: R(3100), bandDefault: R(1800),
-    names: { bn: 'লক্ষ্মী পূজা (কোজাগরী)', hi: 'लक्ष्मी पूजा', en: 'Lakshmi Puja (Kojagari)' },
+    names: { bn: 'লক্ষ্মী পূজা (কোজাগরী)', hi: 'लक्ष्मी पूजा', en: 'Lakshmi Puja (Sharad Purnima)' },
     short: { bn: 'কোজাগরী পূর্ণিমায় লক্ষ্মী পূজা',
-             en: 'Kojagari Purnima Lakshmi Puja' } },
+             en: 'Sharad Purnima Lakshmi Puja' } },
 
   { slug: 'saraswati-puja', durationMin: 120, slotSpan: 1, muhuratSensitive: true,
     bandMin: R(1100), bandMax: R(3100), bandDefault: R(1600),
@@ -102,7 +120,7 @@ export const KOLKATA_RITUALS: RitualSeed[] = [
 
   { slug: 'bastu-puja', durationMin: 180, slotSpan: 1, muhuratSensitive: true,
     bandMin: R(2100), bandMax: R(6100), bandDefault: R(3100),
-    names: { bn: 'বাস্তু পূজা', hi: 'वास्तु शांति', en: 'Bastu Puja' },
+    names: { bn: 'বাস্তু পূজা', hi: 'वास्तु शांति', en: 'Vastu Puja' },
     short: { bn: 'বাস্তুদোষ শান্তির পূজা ও হোম',
              en: 'Vastu correction puja with homa' } },
 
@@ -110,6 +128,64 @@ export const KOLKATA_RITUALS: RitualSeed[] = [
     bandMin: R(1500), bandMax: R(4100), bandDefault: R(2100),
     names: { bn: 'রুদ্রাভিষেক', hi: 'रुद्राभिषेक', en: 'Rudrabhishek' },
     short: { bn: 'শিবলিঙ্গে পঞ্চামৃত অভিষেক', en: 'Panchamrit abhishek of the Shivalinga' } },
+
+  /*
+   * THE LARGE-TICKET PAATH AND JAAP.
+   *
+   * These are the highest-value bookings the business can take and none of them
+   * existed: the catalogue's longest ritual was a six-hour Biye, and a
+   * `CHECK (slot_idx + slot_span <= 4)` — Kolkata's four-slot day, written into the
+   * schema — made anything spanning most of a day unbookable unless it began at
+   * dawn. Migration 0026 lifted that; these are what it was lifted for.
+   *
+   * PRICE BANDS ARE PROVISIONAL. Every other band here was set by the founder
+   * against real Kolkata rates; these are scaled from `nabagraha-shanti`, the
+   * nearest existing remedial ritual, and they should be confirmed before the
+   * catalogue goes live in a city. The band is a floor and ceiling a purohit prices
+   * within (`assertWithinBand`), so getting it wrong caps or inflates what supply
+   * can charge rather than merely being cosmetic.
+   *
+   * A note on jaap counts: a Mahamrityunjay is quoted by repetitions — 11,000 and
+   * 1.25 lakh are the common tiers — and the pricing engine has no notion of a
+   * quantity. This seeds the single-sitting form; a count-based tier is a pricing
+   * change, not a catalogue entry.
+   */
+  /*
+   * The four-day Durga Puja, distinct from `durga-puja-ghot`.
+   *
+   * The catalogue's only Durga Puja was the ghot/kalash form — four hours, one
+   * afternoon — because a single booking row was all the schema could express. That
+   * is a real service and stays; it is not what a family means when they say they
+   * are having Durga Puja at home. Saptami, Ashtami, Nabami and Dashami are four
+   * days of the same purohit at the same hour, which is what `days` now says and
+   * what linked bookings now carry.
+   *
+   * `durationMin` is ONE day's worth. The band is per day too, for the same reason —
+   * the devotee is quoted the series total, computed from it.
+   */
+  { slug: 'durga-puja', durationMin: 240, slotSpan: 2, muhuratSensitive: true, days: 4,
+    bandMin: R(8100), bandMax: R(31000), bandDefault: R(15000),
+    names: { bn: 'দুর্গা পূজা', hi: 'दुर्गा पूजा', en: 'Durga Puja (four days)' },
+    short: { bn: 'সপ্তমী থেকে দশমী — চার দিনের পূর্ণাঙ্গ পূজা',
+             en: 'Saptami to Dashami — the full four-day puja at home' } },
+
+  { slug: 'chandi-paath', durationMin: 300, slotSpan: 2, muhuratSensitive: true,
+    bandMin: R(5100), bandMax: R(21000), bandDefault: R(11000),
+    names: { bn: 'চণ্ডীপাঠ', hi: 'चंडी पाठ', en: 'Chandi Paath' },
+    short: { bn: 'দুর্গা সপ্তশতীর পূর্ণ পাঠ ও চণ্ডী হোম',
+             en: 'Full Durga Saptashati recitation with Chandi homa' } },
+
+  { slug: 'rudra-chandi-paath', durationMin: 360, slotSpan: 2, muhuratSensitive: true,
+    bandMin: R(11000), bandMax: R(51000), bandDefault: R(21000),
+    names: { bn: 'রুদ্রচণ্ডী পাঠ', hi: 'रुद्र चंडी पाठ', en: 'Rudra Chandi Paath' },
+    short: { bn: 'রুদ্র ও চণ্ডীর যুগ্ম পাঠ, হোম সহ',
+             en: 'Combined Rudra and Chandi recitation with homa' } },
+
+  { slug: 'mahamrityunjay-jaap', durationMin: 240, slotSpan: 2, muhuratSensitive: true,
+    bandMin: R(5100), bandMax: R(25000), bandDefault: R(11000),
+    names: { bn: 'মহামৃত্যুঞ্জয় জপ', hi: 'महामृत्युंजय जाप', en: 'Mahamrityunjay Jaap' },
+    short: { bn: 'আরোগ্য ও আয়ুর জন্য মহামৃত্যুঞ্জয় জপ ও হোম',
+             en: 'Mahamrityunjay japa and homa for health and longevity' } },
 
   { slug: 'nabagraha-shanti', durationMin: 180, slotSpan: 1, muhuratSensitive: true,
     bandMin: R(2500), bandMax: R(7100), bandDefault: R(3600),
@@ -148,13 +224,13 @@ export const KOLKATA_RITUALS: RitualSeed[] = [
 
   { slug: 'bishwakarma-puja', durationMin: 90, slotSpan: 1, muhuratSensitive: true,
     bandMin: R(1100), bandMax: R(3600), bandDefault: R(1800),
-    names: { bn: 'বিশ্বকর্মা পূজা', hi: 'विश्वकर्मा पूजा', en: 'Bishwakarma Puja' },
+    names: { bn: 'বিশ্বকর্মা পূজা', hi: 'विश्वकर्मा पूजा', en: 'Vishwakarma Puja' },
     short: { bn: 'কারখানা, দোকান ও যন্ত্রপাতির পূজা',
              en: 'Puja for workshops, shops and machinery' } },
 
   { slug: 'janmashtami-puja', durationMin: 120, slotSpan: 1, muhuratSensitive: true,
     bandMin: R(1100), bandMax: R(3100), bandDefault: R(1600),
-    names: { bn: 'জন্মাষ্টমী (গোপাল পূজা)', hi: 'जन्माष्टमी', en: 'Janmashtami (Gopal Puja)' },
+    names: { bn: 'জন্মাষ্টমী (গোপাল পূজা)', hi: 'जन्माष्टमी', en: 'Janmashtami' },
     short: { bn: 'গোপালের জন্মতিথিতে পূজা ও ভোগ',
              en: 'Janmashtami puja with bhog' } },
 
@@ -165,9 +241,9 @@ export const KOLKATA_RITUALS: RitualSeed[] = [
 
   { slug: 'halkhata', durationMin: 60, slotSpan: 1, muhuratSensitive: true,
     bandMin: R(701), bandMax: R(2100), bandDefault: R(1100),
-    names: { bn: 'হালখাতা (নববর্ষ)', hi: 'हालखाता', en: 'Halkhata (Poila Boishakh)' },
+    names: { bn: 'হালখাতা (নববর্ষ)', hi: 'हालखाता', en: 'New Ledger Puja' },
     short: { bn: 'পয়লা বৈশাখে নতুন খাতার পূজা',
-             en: 'New account-book puja on Poila Boishakh' } },
+             en: 'Puja to bless a new account book for the year ahead' } },
 
   { slug: 'namkaran', durationMin: 90, slotSpan: 1, muhuratSensitive: true,
     bandMin: R(1100), bandMax: R(2500), bandDefault: R(1500),
@@ -221,12 +297,43 @@ export const KOLKATA_RITUALS: RitualSeed[] = [
  * with the consulting purohit before seeding production. Perishables are flagged
  * because they can never be pre-packed; they are same-day local sourcing, always.
  */
-export type SamagriTier = 'none' | 'minimal' | 'standard' | 'elaborate' | 'grand';
+export type SamagriTier =
+  | 'none' | 'devotee_side' | 'minimal' | 'standard' | 'elaborate' | 'grand';
 
 export interface BomItemSeed {
   qty: string; unit: string; grade?: string; price: number; perishable?: boolean;
   names: { bn: string; hi: string; en: string };
 }
+
+/**
+ * What the DEVOTEE keeps ready at their own end for a rite performed over video.
+ *
+ * Never billed: a purohit on a video call cannot bring anything, so this is a
+ * checklist rather than a kit we supply. `samagriOption` is forced to `'none'` for
+ * virtual bookings, which prices it at zero — the list is carried on the ritual so
+ * the family knows what to have to hand, not so we can charge for it.
+ *
+ * Priced at ZERO, deliberately and structurally. We do not supply these and must
+ * never bill for them, and a price on the row is the only way that could happen:
+ * `bomTotalPaise` would go non-zero, the catalogue would show a materials figure
+ * for a video call, and any caller sending `samagriOption: 'pandit_brings'` would
+ * be charged for a kit nobody ships. Zero makes "a video call carries no samagri
+ * charge" a property of the data rather than a guard someone can forget.
+ *
+ * The family buys these from their own shop at their own prices; what they need
+ * from us is the LIST. Same caveat as every other kit here: validate with the
+ * consulting purohit before seeding production.
+ */
+const DEVOTEE_SIDE_KIT: BomItemSeed[] = [
+  { qty: '1', unit: 'piece', price: 0,
+    names: { bn: 'প্রদীপ ও সলতে', hi: 'दीपक और बाती', en: 'Diya with wick' } },
+  { qty: '1', unit: 'packet', price: 0,
+    names: { bn: 'ধূপকাঠি', hi: 'अगरबत्ती', en: 'Incense sticks' } },
+  { qty: '1', unit: 'bunch', price: 0, perishable: true,
+    names: { bn: 'ফুল', hi: 'फूल', en: 'Flowers' } },
+  { qty: '1', unit: 'set', price: 0, perishable: true,
+    names: { bn: 'ফল ও মিষ্টি (ভোগ)', hi: 'फल और मिठाई', en: 'Fruit and sweets for bhog' } },
+];
 
 /** Just what the rite physically needs. Tarpan and Halkhata. ~₹180. */
 const MINIMAL_KIT: BomItemSeed[] = [
@@ -290,6 +397,7 @@ const GRAND_KIT: BomItemSeed[] = [
 
 export const SAMAGRI_KITS: Record<SamagriTier, BomItemSeed[]> = {
   none: [],
+  devotee_side: DEVOTEE_SIDE_KIT,
   minimal: MINIMAL_KIT,
   standard: STANDARD_KIT,
   elaborate: ELABORATE_KIT,
@@ -324,13 +432,24 @@ const SAMAGRI_TIER: Record<string, SamagriTier> = {
   upanayan: 'grand',
   'durga-puja-ghot': 'grand',
 
-  // Nothing to carry down a video call.
-  'online-aarti': 'none',
+  /*
+   * Nothing WE carry down a video call — but an aarti still needs a lamp and a
+   * flower at the devotee's end, and they are the ones who must have it ready.
+   * A consultation needs nothing at all; it is a conversation.
+   */
+  'online-aarti': 'devotee_side',
   'virtual-consultation': 'none',
 };
 
-export const samagriTierFor = (slug: string, deliveryMode?: string): SamagriTier =>
-  deliveryMode === 'virtual' ? 'none' : (SAMAGRI_TIER[slug] ?? 'standard');
+/**
+ * Virtual used to force `'none'` for EVERY remote ritual, which conflated two
+ * different things: "there is no samagri" (a consultation) and "we do not supply
+ * the samagri" (an online aarti, where the devotee lights the lamp themselves).
+ * The second still has a list; it is just a checklist for them rather than a kit
+ * from us, and `samagriOption: 'none'` prices it at zero either way.
+ */
+export const samagriTierFor = (slug: string, _deliveryMode?: string): SamagriTier =>
+  SAMAGRI_TIER[slug] ?? 'standard';
 
 export const samagriKitFor = (slug: string, deliveryMode?: string): BomItemSeed[] =>
   SAMAGRI_KITS[samagriTierFor(slug, deliveryMode)];
@@ -389,6 +508,24 @@ export const BOM_ADDITIONS: Record<string, BomItemSeed[]> = {
   'nabagraha-shanti': [
     { qty: '1', unit: 'set', price: R(380),
       names: { bn: 'নবগ্রহ সমিধ ও রত্ন', hi: 'नवग्रह समिधा', en: 'Nabagraha samidha' } },
+  ],
+  'chandi-paath': [
+    { qty: '1', unit: 'set', price: R(650),
+      names: { bn: 'চণ্ডী হোম সামগ্রী', hi: 'चंडी हवन सामग्री', en: 'Chandi homa samagri' } },
+    { qty: '108', unit: 'piece', price: R(210), perishable: true,
+      names: { bn: 'লাল জবা', hi: 'लाल जपा', en: 'Red hibiscus' } },
+  ],
+  'rudra-chandi-paath': [
+    { qty: '1', unit: 'set', price: R(900),
+      names: { bn: 'রুদ্র ও চণ্ডী হোম সামগ্রী', hi: 'रुद्र-चंडी हवन सामग्री',
+               en: 'Rudra and Chandi homa samagri' } },
+    { qty: '108', unit: 'piece', price: R(70), perishable: true,
+      names: { bn: 'বেলপাতা', hi: 'बेलपत्र', en: 'Bel leaves' } },
+  ],
+  'mahamrityunjay-jaap': [
+    { qty: '1', unit: 'set', price: R(520),
+      names: { bn: 'মৃত্যুঞ্জয় হোম সামগ্রী', hi: 'मृत्युंजय हवन सामग्री',
+               en: 'Mrityunjay homa samagri' } },
   ],
   'saraswati-puja': [
     { qty: '1', unit: 'set', price: R(120), perishable: true,

@@ -51,10 +51,26 @@ describe('the dashboard says plainly when we cannot pay', () => {
     expect(await screen.findByText(/cannot pay you yet/i)).toBeInTheDocument();
   });
 
-  it('offers both a bank account and UPI', async () => {
+  /**
+   * The panel opens as a banner rather than an inline form — adding a payout
+   * account is a once-ever task and it used to unfold four empty inputs above the
+   * job inbox on every single visit. Both methods still have to be one tap away,
+   * which is what this pins; the assertion moved behind that tap rather than being
+   * dropped, because "can a purohit still reach UPI" is the thing worth keeping.
+   */
+  it('offers both a bank account and UPI once opened', async () => {
+    const u = userEvent.setup();
     withRegion(<PayoutAccountPanel />);
+    await u.click(await screen.findByRole('button', { name: /add account/i }));
     expect(await screen.findByRole('button', { name: /Bank account/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /UPI/i })).toBeInTheDocument();
+  });
+
+  /** The warning itself must not need a tap — it is the reason to tap. */
+  it('states the problem without being opened', async () => {
+    withRegion(<PayoutAccountPanel />);
+    expect(await screen.findByText(/cannot pay you yet/i)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Bank account/i })).not.toBeInTheDocument();
   });
 
   it('goes quiet once an account is on file', () => {

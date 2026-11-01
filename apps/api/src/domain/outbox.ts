@@ -1,7 +1,21 @@
 import { ulid } from 'ulid';
-import { sql, eq, and, isNull, inArray } from 'drizzle-orm';
+import { sql, eq, and, inArray } from 'drizzle-orm';
 import type { Db, Executor } from '../db/client';
 import { outbox, processedEvents } from '../db/schema/index';
+
+/**
+ * A claim is a lease, not a lock held for the life of the batch. See the comment on
+ * `outbox.claimedAt` (db/schema/ops.ts) and migration 0016 for why: the relay used to
+ * hold one Postgres transaction open across an entire batch's publish() calls so a
+ * row's `FOR UPDATE` lock would keep a second instance off it too, which meant up to
+ * 100 sequential, awaited external HTTP calls ran while pinning one of only ten
+ * pooled connections shared with every other request the API serves.
+ *
+ * Generous on purpose: publish() should finish in well under this, but a stalled BSP
+ * call must not livelock a row forever either - once a claim is this old, it is
+ * treated as abandoned (the claimant crashed or hung) and becomes reclaimable again.
+ */
+export const CLAIM_VISIBILITY_MS = 30_000;
 
 /**
  * Transactional outbox. See ADR 0005.
@@ -29,36 +43,49 @@ export class OutboxService {
   }
 
   /**
-   * Relay batch. SKIP LOCKED lets multiple relay instances run without contending,
-   * and without the ordering guarantees we do not actually need.
+   * Claim a batch to publish. A single UPDATE ... RETURNING, not wrapped in a
+   * caller-supplied transaction - it commits and releases its connection the moment
+   * it completes, before the relay makes its first publish() call. SKIP LOCKED still
+   * lets multiple relay instances claim different rows without contending; the
+   * `claimedAt` filter is what stops them claiming the SAME row twice once the first
+   * claim has already committed, which a lock released this fast no longer can.
+   *
+   * Takes `Db` specifically, never `Executor` - calling this from inside an open
+   * transaction would hold exactly the connection this exists to free.
    */
-  async claimBatch(db: Executor, limit = 100) {
-    return db
-      .select({
-        id: outbox.id,
-        aggregateType: outbox.aggregateType,
-        aggregateId: outbox.aggregateId,
-        eventType: outbox.eventType,
-        payload: outbox.payload,
-        attempts: outbox.attempts,
-      })
-      .from(outbox)
-      .where(isNull(outbox.publishedAt))
-      .orderBy(outbox.id)
-      .limit(limit)
-      .for('update', { skipLocked: true });
+  async claimBatch(db: Db, limit = 100) {
+    const staleBefore = new Date(Date.now() - CLAIM_VISIBILITY_MS).toISOString();
+    const rows = await db.execute(sql`
+      UPDATE "outbox" SET claimed_at = now()
+      WHERE id IN (
+        SELECT id FROM "outbox"
+        WHERE published_at IS NULL
+          AND (claimed_at IS NULL OR claimed_at < ${staleBefore})
+        ORDER BY id
+        LIMIT ${limit}
+        FOR UPDATE SKIP LOCKED
+      )
+      RETURNING id, aggregate_type AS "aggregateType", aggregate_id AS "aggregateId",
+        event_type AS "eventType", payload, attempts
+    `);
+    return ((rows as unknown as { rows?: unknown[] }).rows ?? rows) as Array<{
+      id: string; aggregateType: string; aggregateId: string;
+      eventType: string; payload: unknown; attempts: number;
+    }>;
   }
 
-  async markPublished(db: Executor, ids: string[]) {
+  async markPublished(db: Db, ids: string[]) {
     if (ids.length === 0) return;
     await db.update(outbox)
       .set({ publishedAt: new Date().toISOString() })
       .where(inArray(outbox.id, ids));
   }
 
-  async markFailed(db: Executor, id: string, error: string) {
+  /** Failed for real (not a crash): clear the lease so the next tick retries it
+   *  immediately rather than waiting out the full visibility timeout. */
+  async markFailed(db: Db, id: string, error: string) {
     await db.update(outbox)
-      .set({ attempts: sql`${outbox.attempts} + 1`, lastError: error })
+      .set({ attempts: sql`${outbox.attempts} + 1`, lastError: error, claimedAt: null })
       .where(eq(outbox.id, id));
   }
 

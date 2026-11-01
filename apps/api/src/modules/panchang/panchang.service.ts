@@ -1,17 +1,20 @@
 import { ulid } from 'ulid';
-import { eq, and, gte, lte, inArray, sql } from 'drizzle-orm';
+import { eq, and, gte, lte, sql } from 'drizzle-orm';
 import type { Db } from '../../db/client';
 import {
   panchangDays, panchangIntervals, panchangTerms, muhuratFlags, cities, rituals,
+  festivalDates,
 } from '../../db/schema/index';
 import {
   sunTimes, intervalsBetween, tithiIndex, tithiKey, julianDay, nakshatraIndex,
   NAKSHATRA_KEYS,
 } from '../../domain/astronomy';
 import { abhijitWindow, rahuKaalWindow, annotateSlot } from '../../domain/panchang';
+import { DomainError, ErrorCode } from '@themaithil/contracts';
 import type { PanjikaSchool, Locale, IsoDate } from '@themaithil/contracts';
 import {
-  getRegion, formatEraDate, slotInstant, computableSchool, type Region,
+  getRegion, formatEraDate, slotInstant, computableSchool,
+  festivalsFor, festivalById, festivalName, notableTithiKey, FESTIVALS, type Region,
 } from '@themaithil/region';
 
 /**
@@ -25,18 +28,11 @@ import {
 const offsetMs = (r: Region) => r.utcOffsetMinutes * 60_000;
 
 /**
- * Calendar helpers in IST.
+ * The weekday in IST, for Rahu Kaal.
  *
- * Both of these replace a bug. Deriving the date with
- * `new Date(`${d}T00:00:00+05:30`).toISOString().slice(0, 10)` yields the PREVIOUS
- * day, because IST midnight is 18:30 UTC the day before - every panchang row was
- * landing on the wrong date. Likewise `sunrise.getUTCDay()` gives the wrong weekday,
- * since a 05:00 IST sunrise is 23:30 UTC on the previous day, which would have shifted
- * Rahu Kaal by a full segment.
+ * `sunrise.getUTCDay()` gives the wrong weekday: a 05:00 IST sunrise is 23:30 UTC
+ * on the previous day, which would shift Rahu Kaal by a full segment.
  */
-const localDateString = (d: Date, r: Region): IsoDate =>
-  new Date(d.getTime() + offsetMs(r)).toISOString().slice(0, 10) as IsoDate;
-
 const localWeekday = (d: Date, r: Region): number =>
   new Date(d.getTime() + offsetMs(r)).getUTCDay();
 
@@ -410,6 +406,212 @@ export class PanchangService {
       );
       return { ...s, containsAbhijit: a.containsAbhijit, overlapsRahuKaal: a.overlapsRahuKaal };
     });
+  }
+
+  /**
+   * What is coming up, for a household in this city keeping this almanac.
+   *
+   * ONE list from TWO sources, because the reader does not care which:
+   *
+   *   TRANSCRIBED festivals, read out of a panjika into `festival_dates`. Named
+   *   annual dates — Durga Puja, Diwali — cannot be derived here, because a lunar
+   *   date needs the lunar month and `panchang_days` holds neither it nor anything
+   *   it can be recovered from. See the migration for why we do not compute them.
+   *
+   *   DERIVED monthly observances, from the tithi already stored. Ekadashi, Purnima,
+   *   Amavasya and Shivaratri repeat every lunar month and depend on the tithi
+   *   ALONE, so they need no transcription and work in every city from day one.
+   *
+   * The catalogue filters by city (`festivalsFor`), the dates come by school, and
+   * the two are joined here — so a Chennai reader is never counted down to Durga
+   * Puja and a Kolkata reader never to Pongal, without either fact being written
+   * into a query.
+   */
+  async upcoming(args: {
+    citySlug: string; school: PanjikaSchool; locale: Locale;
+    from: IsoDate; days: number;
+  }) {
+    const region = getRegion(args.citySlug);
+    const city = (await this.db.select().from(cities)
+      .where(eq(cities.slug, args.citySlug)).limit(1))[0];
+    if (!city) return [];
+
+    const to = addDaysIso(args.from, args.days);
+
+    // Only the festivals this city actually marks, so the date lookup never has to
+    // know about observance and the observance list never has to know about dates.
+    const catalogue = festivalsFor(region.slug);
+    const wanted = new Set(catalogue.map((f) => f.id));
+
+    const [dated, days, labels] = await Promise.all([
+      this.db.select().from(festivalDates).where(and(
+        eq(festivalDates.school, args.school),
+        gte(festivalDates.date, args.from),
+        lte(festivalDates.date, to),
+      )).orderBy(festivalDates.date),
+      this.db.select({
+        date: panchangDays.date, tithi: panchangDays.tithiAtSunrise,
+      }).from(panchangDays).where(and(
+        eq(panchangDays.cityId, city.id),
+        eq(panchangDays.school, args.school),
+        gte(panchangDays.date, args.from),
+        lte(panchangDays.date, to),
+      )).orderBy(panchangDays.date),
+      this.labels(args.locale),
+    ]);
+
+    const festivals = dated
+      .filter((d) => wanted.has(d.festivalId))
+      .map((d) => {
+        const f = festivalById(d.festivalId)!;
+        return {
+          kind: 'festival' as const,
+          id: d.festivalId,
+          name: festivalName(f, args.locale),
+          blurb: f.blurb,
+          date: d.date as IsoDate,
+          endsOn: (d.endsOn ?? null) as IsoDate | null,
+          ritualSlug: f.ritualSlug ?? null,
+        };
+      });
+
+    /*
+     * ONE ENTRY PER OBSERVANCE: THE NEXT ONE.
+     *
+     * A notable tithi recurs every lunar month BY DEFINITION — that is what makes it
+     * a monthly observance rather than a festival. Emitting one row per matching day
+     * meant a three-month window produced Amavasya three times, Krishna Ekadashi
+     * three times, and so on, so a list headed "what is coming up" read as the same
+     * handful of names cycling over and over.
+     *
+     * It was worse than merely repetitive. The named festivals this list is supposed
+     * to lead with are transcribed by hand per school (ADR 0003) and Gupta Press has
+     * none entered yet, so the festival tier is currently EMPTY — which left the
+     * whole feed as nothing but recurring tithis, repeating. Durga Puja, Kali Puja
+     * and Diwali were nowhere in it.
+     *
+     * Deduplicated on the tithi itself, keeping the earliest date, because `days` is
+     * already ordered by date. Festivals are deliberately NOT deduplicated: each is a
+     * specific dated event, and two of them sharing a name inside one window would be
+     * a transcription error worth seeing rather than hiding.
+     */
+    const seenObservance = new Set<string>();
+    const observances = days.flatMap((d) => {
+      const key = notableTithiKey(d.tithi);
+      if (!key) return [];
+      if (seenObservance.has(d.tithi)) return [];
+      seenObservance.add(d.tithi);
+      return [{
+        kind: 'observance' as const,
+        id: d.tithi,
+        // The localised tithi name where `panchang_terms` has one, and the
+        // catalogue's English label otherwise. Never the raw value key.
+        name: labels.get(d.tithi) ?? key,
+        blurb: key,
+        date: d.date as IsoDate,
+        endsOn: null,
+        ritualSlug: null,
+      }];
+    });
+
+    /*
+     * Festivals first on a shared date.
+     *
+     * Kali Puja falls on Amavasya and Lakshmi Puja on Purnima, so both tiers
+     * produce an entry for the same day. The named festival is what the household
+     * is actually marking; the tithi is how it is defined. Showing "Amavasya" above
+     * "Kali Puja" would be technically true and useless.
+     */
+    return [...festivals, ...observances].sort((a, b) =>
+      a.date === b.date
+        ? (a.kind === b.kind ? 0 : a.kind === 'festival' ? -1 : 1)
+        : a.date.localeCompare(b.date));
+  }
+
+  /**
+   * The worksheet: every festival a school could carry, and what has been entered.
+   *
+   * Built as one list rather than "the dates we have", because the person using it is
+   * working through a physical panjika and needs to see the GAPS. A screen that shows
+   * only what exists cannot tell them what is left, which is the single thing that
+   * matters when you are transcribing seventeen festivals by hand.
+   *
+   * Not filtered by city. A panjika's Vijaya Dashami is the same date wherever its
+   * households live, which is why `festival_dates` is school-scoped — so the worksheet
+   * is per SCHOOL, and the question of who observes what stays in `festivalsFor`.
+   */
+  async festivalWorksheet(args: { school: PanjikaSchool; from: IsoDate; to: IsoDate }) {
+    const entered = await this.db.select().from(festivalDates).where(and(
+      eq(festivalDates.school, args.school),
+      gte(festivalDates.date, args.from),
+      lte(festivalDates.date, args.to),
+    ));
+
+    const byFestival = new Map(entered.map((e) => [e.festivalId, e]));
+
+    return {
+      school: args.school,
+      from: args.from,
+      to: args.to,
+      rows: FESTIVALS.map((f) => {
+        const row = byFestival.get(f.id);
+        return {
+          festivalId: f.id,
+          en: f.en,
+          blurb: f.blurb,
+          /** Consecutive days, so the form knows whether to ask for an end date. */
+          days: f.days ?? 1,
+          /** Region slugs that mark it — empty means everywhere we serve. */
+          regions: f.regions ?? [],
+          /** Null when nothing has been transcribed for this festival yet. */
+          id: row?.id ?? null,
+          date: row?.date ?? null,
+          endsOn: row?.endsOn ?? null,
+        };
+      }),
+      /** How many still need a date, so the screen can say how much is left. */
+      remaining: FESTIVALS.filter((f) => !byFestival.has(f.id)).length,
+    };
+  }
+
+  /**
+   * Remove a transcription.
+   *
+   * Needed because `festival_dates` is unique on (school, festival, date): correcting
+   * a date somebody read wrong means removing the old row, not updating it in place —
+   * an upsert keyed on the date cannot change the date. A hard delete rather than a
+   * tombstone, because a wrong almanac reading has no history worth keeping and a
+   * soft-deleted date that a read path forgot to filter is a wrong festival on
+   * somebody's calendar.
+   */
+  async removeFestivalDate(id: string) {
+    const existing = (await this.db.select().from(festivalDates)
+      .where(eq(festivalDates.id, id)).limit(1))[0];
+    if (!existing) throw new DomainError(ErrorCode.NOT_FOUND, 'no such entry');
+    await this.db.delete(festivalDates).where(eq(festivalDates.id, id));
+    return { removed: id, festivalId: existing.festivalId };
+  }
+
+  /** Transcribing a date from an almanac. Ops only — nothing here is computed. */
+  async recordFestival(args: {
+    school: PanjikaSchool; festivalId: string; date: IsoDate;
+    endsOn?: IsoDate | null | undefined; enteredBy: string;
+  }) {
+    if (!festivalById(args.festivalId)) {
+      // A date for a festival the catalogue does not know is a typo, and it would
+      // sit in the table for ever being filtered out of every read.
+      throw new DomainError(ErrorCode.NOT_FOUND, `unknown festival: ${args.festivalId}`);
+    }
+    await this.db.insert(festivalDates).values({
+      id: ulid(),
+      school: args.school,
+      festivalId: args.festivalId,
+      date: args.date,
+      endsOn: args.endsOn ?? null,
+      source: 'manual_panjika',
+      enteredBy: args.enteredBy,
+    }).onConflictDoNothing();
+    return { festivalId: args.festivalId, date: args.date };
   }
 
   private async labels(locale: Locale): Promise<Map<string, string>> {

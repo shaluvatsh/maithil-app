@@ -61,6 +61,20 @@ export interface PaymentGateway {
     idempotencyKey: string;
   }): Promise<RazorpayLinkedAccount>;
   verifyWebhookSignature(rawBody: string, signature: string): boolean;
+  /**
+   * The PUBLISHABLE key the browser opens Checkout with, or null on a gateway that
+   * has no Checkout to open.
+   *
+   * It belongs on the gateway because the gateway is the only thing that knows
+   * whether payments are real here. The alternative — handing the web app a
+   * `NEXT_PUBLIC_RAZORPAY_KEY_ID` of its own — lets the two drift, and the failure
+   * mode is a devotee paying into a different Razorpay account than the one the
+   * order was created in, which nobody notices until reconciliation.
+   *
+   * Publishable, not secret: it identifies the merchant in a checkout the whole
+   * internet can see. `keySecret` never leaves this process.
+   */
+  checkoutKeyId(): string | null;
 }
 
 export class RazorpayClient implements PaymentGateway {
@@ -146,6 +160,8 @@ export class RazorpayClient implements PaymentGateway {
    * that has been parsed and re-serialised will not verify, which is why the webhook
    * route keeps the raw buffer.
    */
+  checkoutKeyId(): string | null { return this.keyId; }
+
   verifyWebhookSignature(rawBody: string, signature: string): boolean {
     if (!signature) return false;
     const expected = createHmac('sha256', this.webhookSecret).update(rawBody).digest('hex');
@@ -194,6 +210,15 @@ export class FakeGateway implements PaymentGateway {
     this.linkedAccounts.push({ id: acct.id, holderName: args.holderName });
     return acct;
   }
+  /**
+   * No Checkout exists here, and saying so is the point.
+   *
+   * The web app branches on this to decide between opening a real Checkout and
+   * taking the local simulate-capture shortcut. Returning a fake-looking key
+   * instead would send a developer to a Razorpay page that rejects it.
+   */
+  checkoutKeyId(): string | null { return null; }
+
   verifyWebhookSignature(rawBody: string, signature: string): boolean {
     return this.sign(rawBody) === signature;
   }

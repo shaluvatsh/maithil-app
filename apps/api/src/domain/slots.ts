@@ -1,5 +1,5 @@
 import { sql, and, eq, inArray } from 'drizzle-orm';
-import type { Db, Executor } from '../db/client';
+import type { Executor } from '../db/client';
 import { availability } from '../db/schema/index';
 import { DomainError, ErrorCode } from '@themaithil/contracts';
 
@@ -26,9 +26,19 @@ export class SlotService {
     slotIdx: number;
     slotSpan: number;
     bookingId: string;
+    /**
+     * The CITY's slot count, not a constant. This was a bare `> 3` — Kolkata's
+     * four-slot day, applied to every purohit regardless of where they work.
+     * The southern cities run five (`SOUTH_SLOTS`); a booking into their
+     * evening slot would have been rejected here even after clearing every
+     * other check, in the one place left that still assumed four. Required
+     * rather than defaulted, so a new call site cannot silently reintroduce
+     * the same bug by omission.
+     */
+    slotsInDay: number;
   }): Promise<void> {
     const indices = Array.from({ length: args.slotSpan }, (_, i) => args.slotIdx + i);
-    if (indices.some((i) => i > 3)) {
+    if (indices.some((i) => i > args.slotsInDay - 1)) {
       throw new DomainError(
         ErrorCode.SLOT_UNAVAILABLE,
         `span of ${args.slotSpan} from slot ${args.slotIdx} runs past the end of the day`,
@@ -68,6 +78,33 @@ export class SlotService {
     await tx.update(availability)
       .set({ status: 'booked', source: 'booking', bookingId: args.bookingId })
       .where(inArray(availability.id, locked.map((r) => r.id)));
+  }
+
+  /**
+   * Marks whatever availability rows a booking's TIME range covers as taken.
+   *
+   * Replaces `lockAndBook` on the confirm path (ADR 0013). That method locked
+   * discrete slot rows and refused if any were not `open` — which cannot express a
+   * booking starting at 10:30, because there is no slot index for it, and would
+   * reject two non-overlapping bookings that happen to fall in the same slot.
+   *
+   * Correctness no longer lives here. Two live bookings cannot overlap because of
+   * the exclusion constraint on `bookings` (migration 0018), and a purohit cannot
+   * be committed to a journey they could not make because of `assertFeasible`.
+   * What is left is BOOKKEEPING for the slot-era views — the purohit's calendar
+   * and the legacy slot search — so it updates what it can and never fails: a
+   * booking must not be refused because a derived view has no row for it.
+   */
+  async markOccupied(tx: Executor, args: {
+    panditId: string; startsAt: Date; endsAt: Date; bookingId: string;
+  }): Promise<void> {
+    await tx.execute(sql`
+      UPDATE availability
+         SET status = 'booked', source = 'booking', booking_id = ${args.bookingId}
+       WHERE pandit_id = ${args.panditId}
+         AND status = 'open'
+         AND tstzrange(starts_at, ends_at)
+             && tstzrange(${args.startsAt.toISOString()}, ${args.endsAt.toISOString()})`);
   }
 
   /** Release on cancellation or expiry. Idempotent. */

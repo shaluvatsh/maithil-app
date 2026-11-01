@@ -1,5 +1,6 @@
 'use client';
 import Link from 'next/link';
+import { LanguagePicker } from '@/components/language-picker';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { auth } from '@/lib/api';
@@ -122,6 +123,7 @@ export function SiteFooter() {
             <ul>
               <li><Link href="/purohit">Work with us as a pandit</Link></li>
               <li><Link href="/contact">Contact us</Link></li>
+              <li><Link href="/community/guidelines">Community guidelines</Link></li>
               <li><Link href="/terms">Terms &amp; refunds</Link></li>
               <li><Link href="/privacy">Privacy</Link></li>
               {isStaff && <li><Link href="/admin">Admin console</Link></li>}
@@ -146,6 +148,15 @@ export function SiteFooter() {
         </div>
 
         <div className="bottom">
+          {/*
+            * The permanent home for the language control.
+            *
+            * Conventional, always reachable, and costs no header space for an
+            * action almost nobody repeats. The first-run banner is what reaches
+            * the reader who cannot find this — the two are halves of one decision.
+            */}
+          <LanguagePicker />
+          <span className="dot" aria-hidden="true">·</span>
           <span>© {new Date().getFullYear()} TheMaithil</span>
           <span className="dot" aria-hidden="true">·</span>
           <Link href="/terms">Terms</Link>

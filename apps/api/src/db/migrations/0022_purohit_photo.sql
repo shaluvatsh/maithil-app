@@ -1,0 +1,13 @@
+-- The face a family sees before they let someone into their home.
+--
+-- The booking screen rendered the first letter of the purohit's name in a circle.
+-- Since ADR 0012 the platform ASSIGNS the purohit, so the devotee did not choose this
+-- person and meets them for the first time at their door — and a letter in a circle
+-- is the only thing we showed them beforehand.
+--
+-- Deliberately NOT a `kyc_records` row. Those are private, are only ever seen by a
+-- reviewer, and their images are purged thirty days after a decision (ADR 0010) — so
+-- filing the profile photo among them would schedule its own deletion. This is public
+-- and permanent, and it lives under its own key prefix so a purge sweep written later
+-- cannot reach it by accident.
+ALTER TABLE pandit_profiles ADD COLUMN IF NOT EXISTS photo_key text;

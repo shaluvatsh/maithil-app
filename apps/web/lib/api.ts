@@ -85,7 +85,26 @@ async function refreshSession(): Promise<boolean> {
   return refreshing;
 }
 
-async function send(path: string, init: RequestInit & { auth?: boolean }) {
+/**
+ * How a request treats credentials.
+ *
+ *   true      — the default. Send the token, refresh on 401, and if the refresh
+ *               fails, sign the user out and send them to login.
+ *   false     — never send a token. For a genuinely anonymous read.
+ *   'optional' — PUBLIC BUT PERSONALISED. Send the token when there is one, refresh
+ *               on 401, and if the refresh fails, drop the token and retry
+ *               anonymously rather than bouncing the reader off a page they are
+ *               entitled to read.
+ *
+ * The third mode exists because `false` was being used for it, which was wrong in
+ * both directions: the community feed and the event page NEED the viewer to render
+ * their own pranams and their own reserved place, and `false` stripped the token — so
+ * a signed-in devotee was always shown an event as though they had never reserved
+ * anything, and the Reserve button then failed with a conflict.
+ */
+export type AuthMode = boolean | 'optional';
+
+async function send(path: string, init: RequestInit & { auth?: AuthMode }) {
   const headers: Record<string, string> = { 'content-type': 'application/json' };
   if (init.auth !== false && auth.token) headers.authorization = `Bearer ${auth.token}`;
 
@@ -97,15 +116,26 @@ async function send(path: string, init: RequestInit & { auth?: boolean }) {
 
 export async function api<T = unknown>(
   path: string,
-  init: RequestInit & { auth?: boolean } = {},
+  init: RequestInit & { auth?: AuthMode } = {},
 ): Promise<T> {
   let res = await send(path, init);
 
   // An expired access token is the normal case after 15 minutes, not an error the
   // user should ever see. Refresh once and replay.
-  if (res.status === 401 && init.auth !== false && auth.refreshToken) {
-    if (await refreshSession()) {
+  if (res.status === 401 && init.auth !== false) {
+    if (auth.refreshToken && await refreshSession()) {
       res = await send(path, init);
+    } else if (init.auth === 'optional') {
+      /*
+       * The session has genuinely lapsed on a page that does not require one.
+       *
+       * Drop the token and read it anonymously. Redirecting to login here would
+       * throw a reader off the community feed or an event page they are perfectly
+       * entitled to see, which is a worse outcome than losing their own pranam marks
+       * until they sign in again.
+       */
+      auth.clear();
+      res = await send(path, { ...init, auth: false });
     } else {
       auth.clear();
       if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {

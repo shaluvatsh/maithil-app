@@ -96,8 +96,26 @@ export interface Region {
   defaultPanjika: PanjikaId;
 
   slots: readonly SlotDef[];
-  /** Minutes of travel the slot gaps allow before a neighbour is buffered. */
+  /**
+   * The MINIMUM turnaround between two jobs, whatever the distance — parking,
+   * packing samagri, greeting the family. A floor, not the gap itself: actual
+   * travel is estimated per pair of addresses and the larger of the two wins.
+   * See ADR 0013.
+   */
   travelGapMinutes: number;
+
+  /**
+   * Average door-to-door speed in km/h, used to turn a straight-line distance into
+   * a travel time.
+   *
+   * Deliberately low, and per city. It stands in for real driving over an
+   * as-the-crow-flies distance, so it has to absorb both the road detour and the
+   * traffic: Kolkata's lanes and Mumbai's arterials are not the same problem, and a
+   * single national constant would be wrong in both directions at once. Erring low
+   * leaves a purohit idle; erring high makes them late for a muhurat, which is the
+   * failure that costs a family their ceremony.
+   */
+  avgSpeedKmph: number;
 
   /**
    * Preferred `boms.tradition` variant — the SAME ritual performed to a local vidhi.

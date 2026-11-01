@@ -41,13 +41,56 @@ import {
  * distinguishes a purohit, and the one no government database holds. `credential`
  * is a paramparā or pathshala certificate.
  */
-const DOC_KINDS = ['identity', 'bank', 'credential', 'demo'] as const;
+const DOC_KINDS = [
+  'identity', 'address', 'pan', 'qualification', 'bank', 'credential', 'demo',
+] as const;
+
+/**
+ * What a purohit must give us before we will review them at all.
+ *
+ * Verification used to require ONE document — a photo ID — and everything else was
+ * optional. "Verified purohit" is the central claim on the home page of a service
+ * that sends a stranger into a family's home, and it could mean an operator had
+ * glanced at a single Aadhaar photo.
+ *
+ * `bank` is deliberately NOT here: payout details are collected on their own screen,
+ * forwarded to the payment provider and never stored by us, and blocking review on
+ * them would stop a purohit who has not got an IFSC to hand — see the setup wizard,
+ * which makes the same call for the same reason.
+ *
+ * `credential` and `demo` stay optional: a paramparā letter and a recording are the
+ * things that distinguish a purohit, not the things that identify one.
+ */
+const REQUIRED_DOCS = ['identity', 'address', 'pan', 'qualification'] as const;
+
+/** What to call each one when telling a purohit what is still outstanding. */
+const DOC_LABEL = (kind: (typeof DOC_KINDS)[number]): string => ({
+  identity: 'a photo ID',
+  address: 'proof of address',
+  pan: 'your PAN card',
+  qualification: 'your qualification certificate',
+  bank: 'your bank details',
+  credential: 'your training certificate',
+  demo: 'a recording',
+}[kind]);
+
+/**
+ * Levels a purohit can claim. Each names a certificate that actually exists, because
+ * selecting one obliges them to upload it.
+ */
+const QUALIFICATION_LEVELS = [
+  '10th', '12th', 'diploma', 'graduate', 'post_graduate', 'doctorate', 'pathshala',
+] as const;
 
 const UploadUrlInput = z.object({
   kind: z.enum(DOC_KINDS),
   contentType: z.string().refine(isAllowedDocType, {
     message: `document must be one of ${ALLOWED_DOC_TYPES.join(', ')}`,
   }),
+});
+
+const QualificationInput = z.object({
+  level: z.enum(QUALIFICATION_LEVELS),
 });
 
 const AttachInput = z.object({
@@ -77,7 +120,12 @@ export class PurohitKycController {
   @Get()
   async status(@CurrentUser() user: JwtClaims) {
     const [profile] = await this.db
-      .select({ status: panditProfiles.kycStatus, verifiedAt: panditProfiles.kycVerifiedAt })
+      .select({
+        status: panditProfiles.kycStatus,
+        verifiedAt: panditProfiles.kycVerifiedAt,
+        highestQualification: panditProfiles.highestQualification,
+        photoKey: panditProfiles.photoKey,
+      })
       .from(panditProfiles).where(eq(panditProfiles.userId, user.sub)).limit(1);
 
     const docs = await this.db.select({
@@ -88,13 +136,92 @@ export class PurohitKycController {
       .from(kycRecords).where(eq(kycRecords.panditId, user.sub))
       .orderBy(desc(kycRecords.createdAt));
 
+    const held = new Set(docs.map((d) => d.kind));
+    const missing = REQUIRED_DOCS.filter((k) => !held.has(k));
+
+    /*
+     * Documents the reviewer has asked for again.
+     *
+     * A flagged document still EXISTS, so it does not appear in `missing` — but the
+     * purohit has to replace it before this can go back for review, and they have to
+     * be told which one and why.
+     */
+    const flagged = docs.filter((d) => d.status === 'rejected');
+
     return {
       status: profile?.status ?? 'pending',
       verifiedAt: profile?.verifiedAt ?? null,
+      highestQualification: profile?.highestQualification ?? null,
       documents: docs,
-      /** The one thing that gates submission, so the UI never has to infer it. */
-      hasIdentity: docs.some((d) => d.kind === 'identity'),
+      /**
+       * Exactly what is still outstanding, named — so the screen never has to infer
+       * it and the purohit is never told "something is missing" without being told
+       * which. `hasIdentity` used to be the whole of this, back when a photo ID was
+       * the only thing required.
+       */
+      required: REQUIRED_DOCS,
+      missing,
+      /** A qualification claimed but unproved is not a qualification. */
+      needsQualification: !profile?.highestQualification,
+      /**
+       * The face a family sees before they let someone into their home.
+       *
+       * Required, not optional: since ADR 0012 the devotee does not choose their
+       * purohit, so a photograph is the only thing they have before the door opens.
+       */
+      needsPhoto: !profile?.photoKey,
+      /** Signed per request, like every other object we hold. */
+      photoUrl: profile?.photoKey
+        ? await this.store.presignDownload({ key: profile.photoKey })
+        : null,
+      /**
+       * A re-upload is required for anything the reviewer flagged, so a purohit
+       * cannot answer a change request by pressing send again.
+       */
+      flagged: flagged.map((d) => ({ id: d.id, kind: d.kind, reason: d.notes })),
+      canSubmit: missing.length === 0
+        && Boolean(profile?.highestQualification)
+        && Boolean(profile?.photoKey)
+        && flagged.length === 0,
+      /**
+       * Where they are, in the words the tracker shows them.
+       *
+       * Derived here rather than in the browser: the rules that decide it — which
+       * documents are required, what a flag means, what blocks submission — all live
+       * on this side, and a second copy of them in the client is a second copy to
+       * drift.
+       */
+      stage: profile?.status === 'verified' ? 'approved'
+        : profile?.status === 'rejected' ? 'declined'
+        : profile?.status === 'changes_requested' || flagged.length > 0 ? 'action_needed'
+        : profile?.status === 'submitted' ? 'in_review'
+        : missing.length === 0 && profile?.highestQualification && profile?.photoKey
+          ? 'ready_to_submit'
+        : 'collecting',
+      /**
+       * How long review takes, stated to the purohit rather than left to them to
+       * guess. Two working days is the operating commitment in ADR 0010; it is here
+       * so the screen and the message quote the same number.
+       */
+      reviewTargetHours: 48,
     };
+  }
+
+  /**
+   * The qualification the purohit is claiming.
+   *
+   * Stored separately from the certificate that proves it, and set before the
+   * upload so the two cannot disagree about what is being shown — and so it survives
+   * the 30-day purge of the document image (ADR 0010), leaving a reviewer looking at
+   * an old approval with a record of what was claimed.
+   */
+  @Post('qualification')
+  async setQualification(@CurrentUser() user: JwtClaims, @Body() body: unknown) {
+    const { level } = QualificationInput.parse(body);
+    await this.db.update(panditProfiles)
+      .set({ highestQualification: level })
+      .where(eq(panditProfiles.userId, user.sub));
+    return { highestQualification: level };
   }
 
   /**
@@ -116,6 +243,9 @@ export class PurohitKycController {
         'you are already verified — contact support if your documents have changed',
       );
     }
+    // Everything short of verified may upload, including a purohit answering a
+    // request for one document. That is the whole point of asking.
+
 
     // The key is ours, never the client's: a client-supplied path is a client that
     // can write over another purohit's document.
@@ -150,6 +280,20 @@ export class PurohitKycController {
       throw new DomainError(ErrorCode.FORBIDDEN, 'that document key is not yours');
     }
 
+    /*
+     * A new document of the same kind REPLACES the old one.
+     *
+     * Without this, answering a change request left the rejected record in place
+     * beside the replacement — so the purohit stayed blocked by a document they had
+     * already re-sent, and the reviewer saw two photo IDs with no way to tell which
+     * was current. The rejection itself is not lost: the reason and the reviewer are
+     * recorded in the audit log when the change is requested.
+     */
+    await this.db.delete(kycRecords).where(and(
+      eq(kycRecords.panditId, user.sub),
+      eq(kycRecords.type, input.kind),
+    ));
+
     const id = ulid();
     await this.db.insert(kycRecords).values({
       id,
@@ -175,23 +319,104 @@ export class PurohitKycController {
    */
   @Post('submit')
   async submit(@CurrentUser() user: JwtClaims) {
-    const [identity] = await this.db.select({ id: kycRecords.id })
-      .from(kycRecords)
-      .where(and(eq(kycRecords.panditId, user.sub), eq(kycRecords.type, 'identity')))
-      .limit(1);
+    const [profile] = await this.db.select({
+      status: panditProfiles.kycStatus,
+      highestQualification: panditProfiles.highestQualification,
+      photoKey: panditProfiles.photoKey,
+    }).from(panditProfiles).where(eq(panditProfiles.userId, user.sub)).limit(1);
 
-    if (!identity) {
+    /*
+     * Already verified — nothing to check and nothing to do.
+     *
+     * This sat AFTER the requirement checks, which was harmless when the only
+     * requirement was a photo ID they must already have had. It is not harmless now:
+     * a purohit verified before these rules existed, or one whose document images
+     * have since been purged (ADR 0010), would be told to upload four documents to
+     * re-enter a state they are already in.
+     */
+    if (profile?.status === 'verified') return { status: 'verified' as const };
+
+    const held = new Set(
+      (await this.db.select({ type: kycRecords.type })
+        .from(kycRecords).where(eq(kycRecords.panditId, user.sub)))
+        .map((d) => d.type),
+    );
+
+    /*
+     * Everything, not just a photo ID.
+     *
+     * This checked for `identity` alone, so a purohit could reach the review queue
+     * having shown us one Aadhaar photo and nothing else — no address, no PAN, no
+     * proof of the training they claim. The admin keeps full discretion to approve
+     * or reject; this is about what reaches them, not about second-guessing them.
+     *
+     * The message names what is missing. "Your application is incomplete" sends
+     * someone hunting through four upload tiles to find which one.
+     */
+    const missing = REQUIRED_DOCS.filter((k) => !held.has(k));
+    if (missing.length > 0) {
       throw new DomainError(
         ErrorCode.KYC_INCOMPLETE,
-        'upload a photo ID before submitting for review',
+        `upload ${missing.map(DOC_LABEL).join(', ')} before submitting for review`,
+        { missing },
       );
     }
 
-    const [profile] = await this.db.select({ status: panditProfiles.kycStatus })
-      .from(panditProfiles).where(eq(panditProfiles.userId, user.sub)).limit(1);
-    if (profile?.status === 'verified') return { status: 'verified' as const };
+    /*
+     * Anything the reviewer asked for again has to be REPLACED, not re-sent.
+     *
+     * `status()` already reported this as `canSubmit: false`, but that only greyed
+     * out a button — the rule has to hold on this side too, or a purohit answering a
+     * change request by pressing submit again puts the same rejected document back in
+     * front of the reviewer and the loop never closes.
+     */
+    const flagged = await this.db.select({ type: kycRecords.type, notes: kycRecords.reviewNotes })
+      .from(kycRecords)
+      .where(and(eq(kycRecords.panditId, user.sub), eq(kycRecords.status, 'rejected')));
+    if (flagged.length > 0) {
+      throw new DomainError(
+        ErrorCode.KYC_INCOMPLETE,
+        `replace ${flagged.map((f) => DOC_LABEL(f.type)).join(', ')} before sending this back`,
+        { flagged: flagged.map((f) => ({ kind: f.type, reason: f.notes })) },
+      );
+    }
 
-    await this.db.update(panditProfiles).set({ kycStatus: 'submitted' })
+    /*
+     * A photograph, because the devotee never chose this person.
+     *
+     * Since ADR 0012 the platform assigns the purohit, so the family meets them for
+     * the first time at their own door. It is also what the reviewer compares against
+     * the photo ID, which is the whole of what identity verification means here.
+     */
+    if (!profile?.photoKey) {
+      throw new DomainError(
+        ErrorCode.KYC_INCOMPLETE,
+        'add a photo of yourself before submitting for review',
+        { missing: ['photo'] },
+      );
+    }
+
+    /*
+     * A certificate with no claim attached tells a reviewer nothing: they would be
+     * looking at a document without knowing what it is meant to prove.
+     */
+    if (!profile?.highestQualification) {
+      throw new DomainError(
+        ErrorCode.KYC_INCOMPLETE,
+        'choose your highest qualification before submitting for review',
+        { missing: ['highestQualification'] },
+      );
+    }
+
+    /*
+     * `submittedAt` is what the review queue is ordered by. It is set on every
+     * submission, including a re-submission after we asked for a document again —
+     * a purohit who answers a request promptly should not be sent to the back of
+     * the queue, but they should not keep their original place either while the
+     * reviewer waits on them.
+     */
+    await this.db.update(panditProfiles)
+      .set({ kycStatus: 'submitted', submittedAt: new Date().toISOString() })
       .where(eq(panditProfiles.userId, user.sub));
 
     return { status: 'submitted' as const };

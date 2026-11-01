@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { ulid } from 'ulid';
-import { makeHarness, daysFromNow, type Harness } from '../../../test/harness';
+import { makeHarness, type Harness } from '../../../test/harness';
 import { bookings } from '../../../db/schema/index';
 import { BookingReadController } from '../booking-read.controller';
 
@@ -41,7 +41,9 @@ const completed = async (date: string, over: Record<string, unknown> = {}) => {
 
 beforeEach(async () => {
   h = await makeHarness();
-  ctl = new BookingReadController(h.db, null as never);
+  // Only the anniversaries read model is under test here; the booking service and
+  // the geocoder are not on that path.
+  ctl = new BookingReadController(h.db, null as never, null as never);
   devoteeId = h.ids.devoteeId;
 }, 60_000);
 afterEach(async () => { await h?.pg.close(); });
